@@ -21,7 +21,7 @@ const SignalInput = ({ signalsText, onSignalsTextChange }: SignalInputProps) => 
         value={signalsText}
         onChange={(e) => onSignalsTextChange(e.target.value)}
         placeholder="Example:&#10;1H;EURUSD;14:30;CALL&#10;5M;GBPUSD;15:45;PUT&#10;15M;USDJPY;16:00;CALL"
-        className="h-[calc(100vh-200px)] text-base font-mono resize-none"
+        className="h-[calc(100vh-240px)] text-base font-mono resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
       />
     </div>
   );
