@@ -1,11 +1,276 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState, useEffect, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { BellOff, Save, PowerOff, BellRing } from 'lucide-react';
+
+interface Signal {
+  timeframe: string;
+  asset: string;
+  timestamp: string;
+  direction: string;
+  triggered: boolean;
+}
 
 const Index = () => {
+  const [signalsText, setSignalsText] = useState('');
+  const [savedSignals, setSavedSignals] = useState<Signal[]>([]);
+  const [isRinging, setIsRinging] = useState(false);
+  const [currentRingingSignal, setCurrentRingingSignal] = useState<Signal | null>(null);
+  const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
+  
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { toast } = useToast();
+
+  // Initialize audio
+  useEffect(() => {
+    // Create a simple beep sound using Web Audio API
+    const createBeepAudio = () => {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      gainNode.gain.value = 0.3;
+      
+      const duration = 1000; // 1 second
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + duration / 1000);
+      
+      return oscillator;
+    };
+
+    // Store the audio creation function for later use
+    audioRef.current = { play: createBeepAudio } as any;
+  }, []);
+
+  // Parse signals from text
+  const parseSignals = (text: string): Signal[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const signals: Signal[] = [];
+    
+    lines.forEach(line => {
+      const parts = line.split(';');
+      if (parts.length === 4) {
+        const [timeframe, asset, timestamp, direction] = parts;
+        if (timestamp.match(/^\d{2}:\d{2}$/)) {
+          signals.push({
+            timeframe: timeframe.trim(),
+            asset: asset.trim(),
+            timestamp: timestamp.trim(),
+            direction: direction.trim(),
+            triggered: false
+          });
+        }
+      }
+    });
+    
+    return signals;
+  };
+
+  // Check if timestamp matches current time
+  const checkSignalTime = (signal: Signal): boolean => {
+    const now = new Date();
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    return signal.timestamp === currentTime && !signal.triggered;
+  };
+
+  // Ring notification
+  const triggerRing = (signal: Signal) => {
+    setIsRinging(true);
+    setCurrentRingingSignal(signal);
+    
+    // Wake up screen if supported
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then(lock => {
+        setWakeLock(lock);
+      }).catch(err => {
+        console.log('Wake lock not supported:', err);
+      });
+    }
+
+    // Play sound
+    if (audioRef.current && audioRef.current.play) {
+      audioRef.current.play();
+    }
+
+    // Show notification
+    toast({
+      title: "Signal Alert!",
+      description: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
+    });
+
+    // Mark signal as triggered
+    setSavedSignals(prev => 
+      prev.map(s => 
+        s === signal ? { ...s, triggered: true } : s
+      )
+    );
+  };
+
+  // Check signals every minute
+  useEffect(() => {
+    if (savedSignals.length > 0) {
+      intervalRef.current = setInterval(() => {
+        savedSignals.forEach(signal => {
+          if (checkSignalTime(signal)) {
+            triggerRing(signal);
+          }
+        });
+      }, 1000); // Check every second for accuracy
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    }
+  }, [savedSignals]);
+
+  // Ring off button handler
+  const handleRingOff = () => {
+    setIsRinging(false);
+    setCurrentRingingSignal(null);
+    
+    if (wakeLock) {
+      wakeLock.release();
+      setWakeLock(null);
+    }
+
+    toast({
+      title: "Ring stopped",
+      description: "Signal notification has been turned off",
+    });
+  };
+
+  // Save signals button handler
+  const handleSaveSignals = () => {
+    const signals = parseSignals(signalsText);
+    setSavedSignals(signals);
+    
+    toast({
+      title: "Signals saved!",
+      description: `${signals.length} signals saved and monitoring started`,
+    });
+  };
+
+  // Screen off button handler
+  const handleScreenOff = async () => {
+    try {
+      if ('wakeLock' in navigator && wakeLock) {
+        await wakeLock.release();
+        setWakeLock(null);
+      }
+      
+      // Request screen to turn off (this is limited in browsers)
+      // The best we can do is minimize or blur the window
+      if (document.documentElement.requestFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      
+      // Blur the window to simulate screen off
+      window.blur();
+      
+      toast({
+        title: "Screen dimmed",
+        description: "Screen has been dimmed. App will continue monitoring signals.",
+      });
+    } catch (error) {
+      toast({
+        title: "Screen control limited",
+        description: "Browser limitations prevent full screen control",
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Alert banner when ringing */}
+      {isRinging && currentRingingSignal && (
+        <div className="bg-destructive text-destructive-foreground p-4 text-center animate-pulse">
+          <div className="flex items-center justify-center gap-2">
+            <BellRing className="h-5 w-5" />
+            <span className="font-bold">
+              SIGNAL ALERT: {currentRingingSignal.asset} - {currentRingingSignal.direction} at {currentRingingSignal.timestamp}
+            </span>
+            <BellRing className="h-5 w-5" />
+          </div>
+        </div>
+      )}
+
+      {/* Main signals area (80-90% of screen) */}
+      <div className="flex-1 p-4">
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold mb-2">Binary Options Signal Tracker</h1>
+          <p className="text-sm text-muted-foreground mb-4">
+            Enter signals in format: TIMEFRAME;ASSET;HH:MM;DIRECTION
+          </p>
+          
+          {savedSignals.length > 0 && (
+            <div className="mb-4 p-3 bg-muted rounded-lg">
+              <p className="text-sm font-medium">
+                Monitoring {savedSignals.length} signals | 
+                Triggered: {savedSignals.filter(s => s.triggered).length}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <Textarea
+          value={signalsText}
+          onChange={(e) => setSignalsText(e.target.value)}
+          placeholder="Example:&#10;1H;EURUSD;14:30;CALL&#10;5M;GBPUSD;15:45;PUT&#10;15M;USDJPY;16:00;CALL"
+          className="min-h-[60vh] text-base font-mono resize-none"
+        />
+      </div>
+
+      {/* Bottom control panel (10-20% of screen) */}
+      <div className="border-t bg-card p-4">
+        <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
+          <Button
+            onClick={handleRingOff}
+            variant={isRinging ? "destructive" : "outline"}
+            className="h-16 flex flex-col gap-1"
+            disabled={!isRinging}
+          >
+            <BellOff className="h-6 w-6" />
+            <span className="text-xs">Ring Off</span>
+          </Button>
+
+          <Button
+            onClick={handleSaveSignals}
+            variant="default"
+            className="h-16 flex flex-col gap-1"
+            disabled={!signalsText.trim()}
+          >
+            <Save className="h-6 w-6" />
+            <span className="text-xs">Save</span>
+          </Button>
+
+          <Button
+            onClick={handleScreenOff}
+            variant="secondary"
+            className="h-16 flex flex-col gap-1"
+          >
+            <PowerOff className="h-6 w-6" />
+            <span className="text-xs">Screen Off</span>
+          </Button>
+        </div>
+
+        {savedSignals.length > 0 && (
+          <div className="mt-4 text-center">
+            <p className="text-xs text-muted-foreground">
+              Next signal: {savedSignals.find(s => !s.triggered)?.timestamp || 'None'} | 
+              Current time: {new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
