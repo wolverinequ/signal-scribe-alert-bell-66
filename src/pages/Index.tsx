@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -127,17 +126,20 @@ const Index = () => {
     }
   }, [savedSignals]);
 
-  // Ring off button handler
+  // Ring off button handler - now always functional
   const handleRingOff = () => {
     setRingOffButtonPressed(true);
     setTimeout(() => setRingOffButtonPressed(false), 200);
     
-    setIsRinging(false);
-    setCurrentRingingSignal(null);
-    
-    if (wakeLock) {
-      wakeLock.release();
-      setWakeLock(null);
+    // Stop ringing if currently ringing
+    if (isRinging) {
+      setIsRinging(false);
+      setCurrentRingingSignal(null);
+      
+      if (wakeLock) {
+        wakeLock.release();
+        setWakeLock(null);
+      }
     }
   };
 
@@ -173,8 +175,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Main signals area (80-90% of screen) */}
-      <div className="flex-1 p-4">
+      {/* Main signals area - extended to fill more space */}
+      <div className="flex-1 p-4 pb-2">
         <div className="mb-4">
           <h1 className="text-2xl font-bold mb-2">Binary Options Signal Tracker</h1>
           <p className="text-sm text-muted-foreground mb-4">
@@ -186,12 +188,12 @@ const Index = () => {
           value={signalsText}
           onChange={(e) => setSignalsText(e.target.value)}
           placeholder="Example:&#10;1H;EURUSD;14:30;CALL&#10;5M;GBPUSD;15:45;PUT&#10;15M;USDJPY;16:00;CALL"
-          className="min-h-[60vh] text-base font-mono resize-none"
+          className="h-[calc(100vh-200px)] text-base font-mono resize-none"
         />
       </div>
 
-      {/* Bottom control panel (10-20% of screen) */}
-      <div className="border-t bg-card p-4">
+      {/* Bottom control panel - no separator line */}
+      <div className="bg-card p-4">
         <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
           <Button
             onClick={handleRingOff}
@@ -199,7 +201,6 @@ const Index = () => {
             className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
               ringOffButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-accent'
             }`}
-            disabled={!isRinging}
           >
             <BellOff className="h-6 w-6" />
             <span className="text-xs">Ring Off</span>
