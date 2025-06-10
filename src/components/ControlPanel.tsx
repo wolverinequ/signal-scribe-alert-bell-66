@@ -1,34 +1,40 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { BellOff, Save, Bell } from 'lucide-react';
+import { BellOff, Save, Monitor } from 'lucide-react';
 
 interface ControlPanelProps {
   signalsText: string;
   saveButtonPressed: boolean;
   ringOffButtonPressed: boolean;
-  setRingButtonPressed: boolean;
-  onRingOff: () => void;
+  screenOffButtonPressed: boolean;
+  onRingOffStart: () => void;
+  onRingOffEnd: () => void;
   onSaveSignals: () => void;
-  onSetRing: () => void;
+  onScreenOff: () => void;
 }
 
 const ControlPanel = ({
   signalsText,
   saveButtonPressed,
   ringOffButtonPressed,
-  setRingButtonPressed,
-  onRingOff,
+  screenOffButtonPressed,
+  onRingOffStart,
+  onRingOffEnd,
   onSaveSignals,
-  onSetRing
+  onScreenOff
 }: ControlPanelProps) => {
   return (
     <div className="bg-card p-4">
       <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
         <Button
-          onClick={onRingOff}
+          onMouseDown={onRingOffStart}
+          onMouseUp={onRingOffEnd}
+          onMouseLeave={onRingOffEnd}
+          onTouchStart={onRingOffStart}
+          onTouchEnd={onRingOffEnd}
           variant="outline"
-          className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
+          className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none ${
             ringOffButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-accent'
           }`}
         >
@@ -49,14 +55,14 @@ const ControlPanel = ({
         </Button>
 
         <Button
-          onClick={onSetRing}
+          onClick={onScreenOff}
           variant="secondary"
           className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
-            setRingButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-secondary/80'
+            screenOffButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-secondary/80'
           }`}
         >
-          <Bell className="h-6 w-6" />
-          <span className="text-xs">Set Ring</span>
+          <Monitor className="h-6 w-6" />
+          <span className="text-xs">Screen Off</span>
         </Button>
       </div>
     </div>

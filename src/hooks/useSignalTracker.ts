@@ -14,9 +14,10 @@ export const useSignalTracker = () => {
   const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
-  const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
+  const [screenOffButtonPressed, setScreenOffButtonPressed] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
   // Ring notification
@@ -58,12 +59,26 @@ export const useSignalTracker = () => {
     }
   }, [savedSignals, customRingtone]);
 
-  // Ring off button handler - now always functional
-  const handleRingOff = () => {
+  // Ring off button handlers
+  const handleRingOffStart = () => {
     setRingOffButtonPressed(true);
-    setTimeout(() => setRingOffButtonPressed(false), 200);
     
-    // Stop ringing if currently ringing
+    // Start long press timer for ringtone selection (3 seconds)
+    longPressTimerRef.current = setTimeout(() => {
+      triggerRingtoneSelection();
+    }, 3000);
+  };
+
+  const handleRingOffEnd = () => {
+    setRingOffButtonPressed(false);
+    
+    // Clear long press timer if it hasn't fired yet
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    
+    // If it was a short press, stop ringing
     if (isRinging) {
       setIsRinging(false);
       setCurrentRingingSignal(null);
@@ -81,12 +96,43 @@ export const useSignalTracker = () => {
     setSavedSignals(signals);
   };
 
-  // Set Ring button handler
-  const handleSetRing = () => {
-    setSetRingButtonPressed(true);
-    setTimeout(() => setSetRingButtonPressed(false), 200);
+  // Screen off button handler
+  const handleScreenOff = () => {
+    setScreenOffButtonPressed(true);
+    setTimeout(() => setScreenOffButtonPressed(false), 200);
     
-    triggerRingtoneSelection();
+    // Turn off the screen by requesting screen wake lock and then releasing it
+    // This is a workaround as there's no direct API to turn off screen
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then((lock) => {
+        // Immediately release to simulate screen off
+        lock.release();
+        
+        // Also try to minimize/blur the window
+        if (window.blur) {
+          window.blur();
+        }
+        
+        // Hide the page content as a visual cue
+        document.body.style.backgroundColor = '#000';
+        document.body.style.color = '#000';
+        
+        // Restore after a short delay
+        setTimeout(() => {
+          document.body.style.backgroundColor = '';
+          document.body.style.color = '';
+        }, 1000);
+      }).catch(() => {
+        // Fallback: just hide content briefly
+        document.body.style.backgroundColor = '#000';
+        document.body.style.color = '#000';
+        
+        setTimeout(() => {
+          document.body.style.backgroundColor = '';
+          document.body.style.color = '';
+        }, 1000);
+      });
+    }
   };
 
   return {
@@ -94,9 +140,10 @@ export const useSignalTracker = () => {
     setSignalsText,
     saveButtonPressed,
     ringOffButtonPressed,
-    setRingButtonPressed,
-    handleRingOff,
+    screenOffButtonPressed,
+    handleRingOffStart,
+    handleRingOffEnd,
     handleSaveSignals,
-    handleSetRing
+    handleScreenOff
   };
 };
