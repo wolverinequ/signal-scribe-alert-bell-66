@@ -1,5 +1,5 @@
 
-// Service Worker for background notifications
+// Service Worker for background notifications and mobile support
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing');
   self.skipWaiting();
@@ -33,5 +33,21 @@ self.addEventListener('notificationclick', (event) => {
       }
       return self.clients.openWindow('/');
     })
+  );
+});
+
+// Handle push notifications for mobile
+self.addEventListener('push', (event) => {
+  const options = {
+    body: event.data ? event.data.text() : 'Signal notification',
+    icon: '/placeholder.svg',
+    badge: '/placeholder.svg',
+    vibrate: [200, 100, 200],
+    tag: 'signal-notification',
+    requireInteraction: true
+  };
+
+  event.waitUntil(
+    self.registration.showNotification('Signal Tracker', options)
   );
 });

@@ -3,7 +3,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Binary Options Signal Tracker</title>
     <meta name="description" content="Track and get notifications for binary options signals" />
     <meta name="author" content="Lovable" />
@@ -14,11 +14,27 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SignalTracker">
     
+    <!-- Android specific -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-status-bar-style" content="black-translucent">
+    
     <!-- Manifest -->
     <link rel="manifest" href="/manifest.json">
     
     <!-- Theme Color -->
     <meta name="theme-color" content="#000000">
+    <meta name="msapplication-navbutton-color" content="#000000">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Capacitor safe area support -->
+    <style>
+      body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    </style>
 
     <meta property="og:title" content="Binary Options Signal Tracker" />
     <meta property="og:description" content="Track and get notifications for binary options signals" />
