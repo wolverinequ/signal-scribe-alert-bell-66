@@ -13,7 +13,8 @@ const Index = () => {
     setRingButtonPressed,
     handleRingOff,
     handleSaveSignals,
-    handleSetRing
+    handleSetRing,
+    handleScreenOff
   } = useSignalTracker();
 
   return (
@@ -31,6 +32,7 @@ const Index = () => {
         onRingOff={handleRingOff}
         onSaveSignals={handleSaveSignals}
         onSetRing={handleSetRing}
+        onScreenOff={handleScreenOff}
       />
     </div>
   );
