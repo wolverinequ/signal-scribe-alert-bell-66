@@ -5,14 +5,20 @@ export const useKeyboardDetection = () => {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   useEffect(() => {
-    const handleFocusIn = () => {
-      // Add a small delay to ensure the keyboard is fully shown
-      setTimeout(() => setIsKeyboardVisible(true), 150);
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      // Only show keyboard UI for input/textarea elements
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        setTimeout(() => setIsKeyboardVisible(true), 150);
+      }
     };
 
-    const handleFocusOut = () => {
-      // Add a small delay to ensure the keyboard is fully hidden
-      setTimeout(() => setIsKeyboardVisible(false), 150);
+    const handleFocusOut = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      // Hide keyboard UI when input/textarea loses focus
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        setTimeout(() => setIsKeyboardVisible(false), 150);
+      }
     };
 
     // Listen for focus events on input elements

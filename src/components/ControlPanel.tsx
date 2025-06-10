@@ -23,6 +23,15 @@ const ControlPanel = ({
 }: ControlPanelProps) => {
   const isKeyboardVisible = useKeyboardDetection();
 
+  const handleSaveClick = () => {
+    // Hide keyboard by blurring any active input/textarea
+    const activeElement = document.activeElement as HTMLElement;
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+      activeElement.blur();
+    }
+    onSaveSignals();
+  };
+
   return (
     <div className={`bg-card p-4 transition-all duration-300 ${
       isKeyboardVisible 
@@ -40,7 +49,7 @@ const ControlPanel = ({
         </Button>
 
         <Button
-          onClick={onSaveSignals}
+          onClick={handleSaveClick}
           variant="default"
           className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
             saveButtonPressed ? 'scale-95 opacity-80' : 'hover:bg-primary/90'
