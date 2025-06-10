@@ -112,8 +112,8 @@ export const useSignalTracker = () => {
             // Fallback: blur the window to background the app
             window.blur();
           }
-        } catch (error: any) {
-          console.log('Screen off not supported:', error);
+        } catch (err: any) {
+          console.log('Screen off not supported:', err);
         }
       }
     }

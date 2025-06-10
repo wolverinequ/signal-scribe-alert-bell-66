@@ -27,7 +27,8 @@ const ControlPanel = ({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const isLongPress = useRef(false);
 
-  const handleRingOffStart = () => {
+  const handleRingOffStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
       isLongPress.current = true;
@@ -35,7 +36,8 @@ const ControlPanel = ({
     }, 3000);
   };
 
-  const handleRingOffEnd = () => {
+  const handleRingOffEnd = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
     }
@@ -46,7 +48,8 @@ const ControlPanel = ({
     }
   };
 
-  const handleRingOffCancel = () => {
+  const handleRingOffCancel = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
     }
