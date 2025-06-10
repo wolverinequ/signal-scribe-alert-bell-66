@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 
 interface Signal {
@@ -17,9 +16,12 @@ export const useSignalTracker = () => {
   const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
+  const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
+  const [customRingtone, setCustomRingtone] = useState<string | null>(null);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Initialize audio
   useEffect(() => {
@@ -45,7 +47,34 @@ export const useSignalTracker = () => {
 
     // Store the audio creation function for later use
     audioRef.current = { play: createBeepAudio } as any;
+
+    // Create hidden file input for ringtone selection
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'audio/*';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', handleRingtoneSelect);
+    document.body.appendChild(fileInput);
+    fileInputRef.current = fileInput;
+
+    return () => {
+      if (fileInputRef.current && document.body.contains(fileInputRef.current)) {
+        document.body.removeChild(fileInputRef.current);
+      }
+    };
   }, []);
+
+  // Handle ringtone file selection
+  const handleRingtoneSelect = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setCustomRingtone(url);
+      console.log('Custom ringtone set:', file.name);
+    }
+  };
 
   // Parse signals from text
   const parseSignals = (text: string): Signal[] => {
@@ -92,9 +121,21 @@ export const useSignalTracker = () => {
       });
     }
 
-    // Play sound
-    if (audioRef.current && audioRef.current.play) {
-      audioRef.current.play();
+    // Play custom ringtone or default beep
+    if (customRingtone) {
+      const audio = new Audio(customRingtone);
+      audio.play().catch(err => {
+        console.log('Error playing custom ringtone:', err);
+        // Fallback to default beep
+        if (audioRef.current && audioRef.current.play) {
+          audioRef.current.play();
+        }
+      });
+    } else {
+      // Play default beep
+      if (audioRef.current && audioRef.current.play) {
+        audioRef.current.play();
+      }
     }
 
     // Mark signal as triggered
@@ -150,61 +191,13 @@ export const useSignalTracker = () => {
     setSavedSignals(signals);
   };
 
-  // Enhanced screen off button handler
-  const handleScreenOff = async () => {
-    try {
-      console.log('Screen off button clicked - attempting to turn off screen');
-      
-      // Release any existing wake lock first
-      if (wakeLock) {
-        await wakeLock.release();
-        setWakeLock(null);
-        console.log('Wake lock released');
-      }
-      
-      // Try to minimize the page visibility
-      if (document.hidden !== undefined) {
-        // Blur the window
-        window.blur();
-        console.log('Window blurred');
-      }
-      
-      // Try to exit fullscreen if in fullscreen
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-        console.log('Exited fullscreen');
-      }
-      
-      // For mobile browsers, try to minimize
-      if ('userAgent' in navigator && /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-        // On mobile, blur the window and try to minimize
-        window.blur();
-        
-        // Try to navigate away temporarily (this will minimize most mobile browsers)
-        const currentUrl = window.location.href;
-        window.location.href = 'about:blank';
-        setTimeout(() => {
-          window.location.href = currentUrl;
-        }, 100);
-        
-        console.log('Mobile screen off attempt executed');
-      }
-      
-      // Additional attempt: set page visibility to hidden
-      Object.defineProperty(document, 'visibilityState', {
-        writable: true,
-        value: 'hidden'
-      });
-      
-      // Dispatch visibility change event
-      document.dispatchEvent(new Event('visibilitychange'));
-      
-    } catch (error) {
-      console.log('Screen control attempt failed:', error);
-      
-      // Fallback: at least blur the window and show a message
-      window.blur();
-      alert('Screen off functionality is limited in browsers. For full screen control, please use this app as a mobile app.');
+  // Set Ring button handler
+  const handleSetRing = () => {
+    setSetRingButtonPressed(true);
+    setTimeout(() => setSetRingButtonPressed(false), 200);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
@@ -213,8 +206,9 @@ export const useSignalTracker = () => {
     setSignalsText,
     saveButtonPressed,
     ringOffButtonPressed,
+    setRingButtonPressed,
     handleRingOff,
     handleSaveSignals,
-    handleScreenOff
+    handleSetRing
   };
 };

@@ -12,16 +12,13 @@ const SignalInput = ({ signalsText, onSignalsTextChange }: SignalInputProps) => 
     <div className="flex-1 p-4 pb-2">
       <div className="mb-4">
         <h1 className="text-2xl font-bold mb-2">Binary Options Signal Tracker</h1>
-        <p className="text-sm text-muted-foreground mb-4">
-          Enter signals in format: TIMEFRAME;ASSET;HH:MM;DIRECTION
-        </p>
       </div>
 
       <Textarea
         value={signalsText}
         onChange={(e) => onSignalsTextChange(e.target.value)}
-        placeholder="Example:&#10;1H;EURUSD;14:30;CALL&#10;5M;GBPUSD;15:45;PUT&#10;15M;USDJPY;16:00;CALL"
-        className="h-[calc(100vh-240px)] text-base font-mono resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+        placeholder="Enter signals here, one per line,&#10;Format: TIMEFRAME;ASSET;HH:MM;DIRECTION&#10;Example:&#10;1H;EURUSD;14:30;CALL&#10;5M;GBPUSD;15:45;PUT&#10;15M;USDJPY;16:00;CALL"
+        className="h-[calc(100vh-180px)] text-base font-mono resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
       />
     </div>
   );

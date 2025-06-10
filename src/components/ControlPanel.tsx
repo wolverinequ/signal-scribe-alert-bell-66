@@ -1,24 +1,26 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { BellOff, Save, PowerOff } from 'lucide-react';
+import { BellOff, Save, Bell } from 'lucide-react';
 
 interface ControlPanelProps {
   signalsText: string;
   saveButtonPressed: boolean;
   ringOffButtonPressed: boolean;
+  setRingButtonPressed: boolean;
   onRingOff: () => void;
   onSaveSignals: () => void;
-  onScreenOff: () => void;
+  onSetRing: () => void;
 }
 
 const ControlPanel = ({
   signalsText,
   saveButtonPressed,
   ringOffButtonPressed,
+  setRingButtonPressed,
   onRingOff,
   onSaveSignals,
-  onScreenOff
+  onSetRing
 }: ControlPanelProps) => {
   return (
     <div className="bg-card p-4">
@@ -47,12 +49,14 @@ const ControlPanel = ({
         </Button>
 
         <Button
-          onClick={onScreenOff}
+          onClick={onSetRing}
           variant="secondary"
-          className="h-16 flex flex-col gap-1 transition-all duration-200 hover:bg-secondary/80"
+          className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
+            setRingButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-secondary/80'
+          }`}
         >
-          <PowerOff className="h-6 w-6" />
-          <span className="text-xs">Screen Off</span>
+          <Bell className="h-6 w-6" />
+          <span className="text-xs">Set Ring</span>
         </Button>
       </div>
     </div>
