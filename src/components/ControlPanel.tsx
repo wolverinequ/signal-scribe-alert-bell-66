@@ -2,11 +2,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { BellOff, Save, Bell } from 'lucide-react';
+import { useKeyboardDetection } from '@/hooks/useKeyboardDetection';
 
 interface ControlPanelProps {
   signalsText: string;
   saveButtonPressed: boolean;
-  ringOffButtonPressed: boolean;
   setRingButtonPressed: boolean;
   onRingOff: () => void;
   onSaveSignals: () => void;
@@ -16,21 +16,24 @@ interface ControlPanelProps {
 const ControlPanel = ({
   signalsText,
   saveButtonPressed,
-  ringOffButtonPressed,
   setRingButtonPressed,
   onRingOff,
   onSaveSignals,
   onSetRing
 }: ControlPanelProps) => {
+  const isKeyboardVisible = useKeyboardDetection();
+
   return (
-    <div className="bg-card p-4">
+    <div className={`bg-card p-4 transition-all duration-300 ${
+      isKeyboardVisible 
+        ? 'fixed bottom-0 left-0 right-0 z-50 border-t' // Fixed position above keyboard
+        : 'relative' // Normal position
+    }`}>
       <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
         <Button
           onClick={onRingOff}
           variant="outline"
-          className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
-            ringOffButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-accent'
-          }`}
+          className="h-16 flex flex-col gap-1 transition-all duration-200 hover:bg-accent"
         >
           <BellOff className="h-6 w-6" />
           <span className="text-xs">Ring Off</span>

@@ -9,7 +9,6 @@ const Index = () => {
     signalsText,
     setSignalsText,
     saveButtonPressed,
-    ringOffButtonPressed,
     setRingButtonPressed,
     handleRingOff,
     handleSaveSignals,
@@ -26,7 +25,6 @@ const Index = () => {
       <ControlPanel
         signalsText={signalsText}
         saveButtonPressed={saveButtonPressed}
-        ringOffButtonPressed={ringOffButtonPressed}
         setRingButtonPressed={setRingButtonPressed}
         onRingOff={handleRingOff}
         onSaveSignals={handleSaveSignals}
