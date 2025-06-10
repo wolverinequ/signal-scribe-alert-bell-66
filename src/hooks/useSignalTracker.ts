@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
@@ -111,8 +112,8 @@ export const useSignalTracker = () => {
             // Fallback: blur the window to background the app
             window.blur();
           }
-        } catch (err) {
-          console.log('Screen off not supported:', err);
+        } catch (error) {
+          console.log('Screen off not supported:', error);
         }
       }
     }
