@@ -89,36 +89,6 @@ export const useSignalTracker = () => {
     triggerRingtoneSelection();
   };
 
-  // Screen off handler
-  const handleScreenOff = () => {
-    setSetRingButtonPressed(true);
-    setTimeout(() => setSetRingButtonPressed(false), 200);
-    
-    // Request screen to turn off using wake lock API
-    if ('wakeLock' in navigator) {
-      // Release any existing wake lock to allow screen to turn off
-      if (wakeLock) {
-        releaseWakeLock(wakeLock);
-        setWakeLock(null);
-      }
-      
-      // Try to use the Screen Lock API if available
-      if ('screen' in navigator && 'orientation' in navigator.screen) {
-        try {
-          // This will minimize the app on mobile devices
-          if (window.history && window.history.length > 1) {
-            window.history.back();
-          } else {
-            // Fallback: blur the window to background the app
-            window.blur();
-          }
-        } catch (err) {
-          console.log('Screen off not supported:', err);
-        }
-      }
-    }
-  };
-
   return {
     signalsText,
     setSignalsText,
@@ -127,7 +97,6 @@ export const useSignalTracker = () => {
     setRingButtonPressed,
     handleRingOff,
     handleSaveSignals,
-    handleSetRing,
-    handleScreenOff
+    handleSetRing
   };
 };

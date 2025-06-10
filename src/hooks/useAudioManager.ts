@@ -17,7 +17,6 @@ export const useAudioManager = () => {
 
     return () => {
       if (fileInputRef.current && document.body.contains(fileInputRef.current)) {
-        fileInputRef.current.removeEventListener('change', handleRingtoneSelect);
         document.body.removeChild(fileInputRef.current);
       }
     };
