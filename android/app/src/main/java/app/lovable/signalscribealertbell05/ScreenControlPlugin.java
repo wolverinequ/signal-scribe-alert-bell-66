@@ -1,10 +1,8 @@
 
 package app.lovable.signalscribealertbell05;
 
-import android.app.admin.DevicePolicyManager;
-import android.content.ComponentName;
+import android.app.KeyguardManager;
 import android.content.Context;
-import android.content.Intent;
 import android.os.PowerManager;
 import android.view.WindowManager;
 
@@ -22,22 +20,34 @@ public class ScreenControlPlugin extends Plugin {
     @PluginMethod
     public void turnOffScreen(PluginCall call) {
         try {
-            // Method 1: Try device admin approach
-            DevicePolicyManager devicePolicyManager = (DevicePolicyManager) getContext().getSystemService(Context.DEVICE_POLICY_SERVICE);
-            if (devicePolicyManager != null) {
-                devicePolicyManager.lockNow();
-                call.resolve();
-                return;
-            }
-
-            // Method 2: Turn off screen using system service
             PowerManager powerManager = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
-            if (powerManager != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                // This requires DEVICE_ADMIN permission
-                Intent intent = new Intent(Intent.ACTION_SCREEN_OFF);
-                getContext().sendBroadcast(intent);
+            
+            if (powerManager != null) {
+                // Turn off screen using goToSleep method
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                    powerManager.goToSleep(android.os.SystemClock.uptimeMillis());
+                    call.resolve();
+                    return;
+                }
+                
+                // Alternative approach for older versions
+                KeyguardManager keyguardManager = (KeyguardManager) getContext().getSystemService(Context.KEYGUARD_SERVICE);
+                if (keyguardManager != null) {
+                    // This will lock the screen
+                    getActivity().runOnUiThread(() -> {
+                        getActivity().moveTaskToBack(true);
+                        // Force the screen to turn off
+                        WindowManager.LayoutParams params = getActivity().getWindow().getAttributes();
+                        params.flags |= WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+                        params.screenBrightness = 0.0f;
+                        getActivity().getWindow().setAttributes(params);
+                        
+                        // Simulate screen lock by finishing activity
+                        getActivity().finish();
+                    });
+                }
             }
-
+            
             call.resolve();
         } catch (Exception e) {
             call.reject("Failed to turn off screen: " + e.getMessage());
