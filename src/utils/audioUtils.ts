@@ -15,6 +15,11 @@ export const createBeepAudio = () => {
   oscillator.start();
   oscillator.stop(audioContext.currentTime + duration / 1000);
   
+  // Store audio context for cleanup tracking
+  if (window.audioContextsRef) {
+    window.audioContextsRef.push(audioContext);
+  }
+  
   return oscillator;
 };
 

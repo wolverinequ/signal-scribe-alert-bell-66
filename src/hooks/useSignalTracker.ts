@@ -17,7 +17,8 @@ export const useSignalTracker = () => {
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
+  const audioContextsRef = useRef<AudioContext[]>([]);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
   // Ring notification
@@ -34,10 +35,10 @@ export const useSignalTracker = () => {
       window.focus();
     }
 
-    // Play custom ringtone or default beep
+    // Play custom ringtone or default beep and track audio instances
     const audio = await playCustomRingtone(customRingtone);
     if (audio instanceof HTMLAudioElement) {
-      audioRef.current = audio;
+      audioInstancesRef.current.push(audio);
     }
 
     // Mark signal as triggered
@@ -67,27 +68,34 @@ export const useSignalTracker = () => {
     }
   }, [savedSignals, customRingtone]);
 
-  // Ring off button handler - stops all audio immediately
+  // Ring off button handler - stops ALL audio immediately
   const handleRingOff = () => {
     setRingOffButtonPressed(true);
     setTimeout(() => setRingOffButtonPressed(false), 200);
     
-    // Stop all audio immediately
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
-    }
-    
-    // Stop any Web Audio API sounds
-    if (window.AudioContext || (window as any).webkitAudioContext) {
-      try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        audioContext.close();
-      } catch (err) {
-        console.log('Audio context cleanup error:', err);
+    // Stop ALL audio instances immediately
+    audioInstancesRef.current.forEach(audio => {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
       }
-    }
+    });
+    audioInstancesRef.current = [];
+    
+    // Stop ALL Web Audio API contexts
+    audioContextsRef.current.forEach(context => {
+      if (context && context.state !== 'closed') {
+        context.close().catch(err => console.log('Audio context cleanup error:', err));
+      }
+    });
+    audioContextsRef.current = [];
+    
+    // Additional cleanup: Stop any remaining audio elements on the page
+    const allAudioElements = document.querySelectorAll('audio');
+    allAudioElements.forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
     
     // Stop ringing if currently ringing
     if (isRinging) {
