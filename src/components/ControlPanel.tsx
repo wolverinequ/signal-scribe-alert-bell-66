@@ -1,40 +1,34 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { BellOff, Save, Monitor } from 'lucide-react';
+import { BellOff, Save, Bell } from 'lucide-react';
 
 interface ControlPanelProps {
   signalsText: string;
   saveButtonPressed: boolean;
   ringOffButtonPressed: boolean;
-  screenOffButtonPressed: boolean;
-  onRingOffStart: () => void;
-  onRingOffEnd: () => void;
+  setRingButtonPressed: boolean;
+  onRingOff: () => void;
   onSaveSignals: () => void;
-  onScreenOff: () => void;
+  onSetRing: () => void;
 }
 
 const ControlPanel = ({
   signalsText,
   saveButtonPressed,
   ringOffButtonPressed,
-  screenOffButtonPressed,
-  onRingOffStart,
-  onRingOffEnd,
+  setRingButtonPressed,
+  onRingOff,
   onSaveSignals,
-  onScreenOff
+  onSetRing
 }: ControlPanelProps) => {
   return (
     <div className="bg-card p-4">
       <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
         <Button
-          onMouseDown={onRingOffStart}
-          onMouseUp={onRingOffEnd}
-          onMouseLeave={onRingOffEnd}
-          onTouchStart={onRingOffStart}
-          onTouchEnd={onRingOffEnd}
+          onClick={onRingOff}
           variant="outline"
-          className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none ${
+          className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
             ringOffButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-accent'
           }`}
         >
@@ -55,14 +49,14 @@ const ControlPanel = ({
         </Button>
 
         <Button
-          onClick={onScreenOff}
+          onClick={onSetRing}
           variant="secondary"
           className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
-            screenOffButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-secondary/80'
+            setRingButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-secondary/80'
           }`}
         >
-          <Monitor className="h-6 w-6" />
-          <span className="text-xs">Screen Off</span>
+          <Bell className="h-6 w-6" />
+          <span className="text-xs">Set Ring</span>
         </Button>
       </div>
     </div>

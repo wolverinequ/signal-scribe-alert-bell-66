@@ -1,34 +1,32 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
+import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
 import { useAudioManager } from './useAudioManager';
-import ScreenControl from '@/plugins/screenControl';
 
 export const useSignalTracker = () => {
   const [signalsText, setSignalsText] = useState('');
   const [savedSignals, setSavedSignals] = useState<Signal[]>([]);
   const [isRinging, setIsRinging] = useState(false);
   const [currentRingingSignal, setCurrentRingingSignal] = useState<Signal | null>(null);
+  const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
-  const [screenOffButtonPressed, setScreenOffButtonPressed] = useState(false);
+  const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
-  // Ring notification with native wake lock
+  // Ring notification
   const triggerRing = async (signal: Signal) => {
     setIsRinging(true);
     setCurrentRingingSignal(signal);
     
-    // Use native wake lock
-    try {
-      await ScreenControl.acquireWakeLock();
-    } catch (error) {
-      console.log('Failed to acquire native wake lock:', error);
-    }
+    // Wake up screen if supported
+    const lock = await requestWakeLock();
+    setWakeLock(lock);
 
     // Play custom ringtone or default beep
     await playCustomRingtone(customRingtone);
@@ -60,36 +58,17 @@ export const useSignalTracker = () => {
     }
   }, [savedSignals, customRingtone]);
 
-  // Ring off button handlers with native functionality
-  const handleRingOffStart = () => {
+  // Ring off button handler - now always functional
+  const handleRingOff = () => {
     setRingOffButtonPressed(true);
+    setTimeout(() => setRingOffButtonPressed(false), 200);
     
-    // Start long press timer for ringtone selection (3 seconds)
-    longPressTimerRef.current = setTimeout(() => {
-      triggerRingtoneSelection();
-    }, 3000);
-  };
-
-  const handleRingOffEnd = () => {
-    setRingOffButtonPressed(false);
-    
-    // Clear long press timer if it hasn't fired yet
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    
-    // If it was a short press, stop ringing
+    // Stop ringing if currently ringing
     if (isRinging) {
       setIsRinging(false);
       setCurrentRingingSignal(null);
-      
-      // Release native wake lock
-      try {
-        ScreenControl.releaseWakeLock();
-      } catch (error) {
-        console.log('Failed to release native wake lock:', error);
-      }
+      releaseWakeLock(wakeLock);
+      setWakeLock(null);
     }
   };
 
@@ -102,17 +81,12 @@ export const useSignalTracker = () => {
     setSavedSignals(signals);
   };
 
-  // Native screen off button handler
-  const handleScreenOff = async () => {
-    setScreenOffButtonPressed(true);
-    setTimeout(() => setScreenOffButtonPressed(false), 200);
+  // Set Ring button handler
+  const handleSetRing = () => {
+    setSetRingButtonPressed(true);
+    setTimeout(() => setSetRingButtonPressed(false), 200);
     
-    try {
-      await ScreenControl.turnOffScreen();
-      console.log('Screen turned off successfully');
-    } catch (error) {
-      console.log('Failed to turn off screen:', error);
-    }
+    triggerRingtoneSelection();
   };
 
   return {
@@ -120,10 +94,9 @@ export const useSignalTracker = () => {
     setSignalsText,
     saveButtonPressed,
     ringOffButtonPressed,
-    screenOffButtonPressed,
-    handleRingOffStart,
-    handleRingOffEnd,
+    setRingButtonPressed,
+    handleRingOff,
     handleSaveSignals,
-    handleScreenOff
+    handleSetRing
   };
 };
