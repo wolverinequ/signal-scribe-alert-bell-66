@@ -11,7 +11,7 @@ const SignalInput = ({ signalsText, onSignalsTextChange }: SignalInputProps) => 
   return (
     <div className="flex-1 p-4 pb-2">
       <div className="mb-4">
-        <h1 className="text-2xl font-bold mb-2">Binary Options Signal Tracker</h1>
+        <h1 className="text-2xl font-bold mb-2 text-center">Binary Options Signal Tracker</h1>
       </div>
 
       <Textarea

@@ -28,9 +28,10 @@ const ControlPanel = ({
         <Button
           onClick={onRingOff}
           variant="outline"
-          className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
+          className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none ${
             ringOffButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-accent'
           }`}
+          style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
         >
           <BellOff className="h-6 w-6" />
           <span className="text-xs">Ring Off</span>
@@ -39,10 +40,11 @@ const ControlPanel = ({
         <Button
           onClick={onSaveSignals}
           variant="default"
-          className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
+          className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none ${
             saveButtonPressed ? 'scale-95 opacity-80' : 'hover:bg-primary/90'
           }`}
           disabled={!signalsText.trim()}
+          style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
         >
           <Save className="h-6 w-6" />
           <span className="text-xs">Save</span>
@@ -50,10 +52,11 @@ const ControlPanel = ({
 
         <Button
           onClick={onSetRing}
-          variant="secondary"
-          className={`h-16 flex flex-col gap-1 transition-all duration-200 ${
-            setRingButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-secondary/80'
+          variant="outline"
+          className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none ${
+            setRingButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-accent'
           }`}
+          style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
         >
           <Bell className="h-6 w-6" />
           <span className="text-xs">Set Ring</span>

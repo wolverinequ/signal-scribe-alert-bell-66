@@ -17,6 +17,7 @@ export const useSignalTracker = () => {
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
   // Ring notification
@@ -28,8 +29,16 @@ export const useSignalTracker = () => {
     const lock = await requestWakeLock();
     setWakeLock(lock);
 
+    // Wake up screen on mobile by trying to focus the window
+    if (document.hidden) {
+      window.focus();
+    }
+
     // Play custom ringtone or default beep
-    await playCustomRingtone(customRingtone);
+    const audio = await playCustomRingtone(customRingtone);
+    if (audio instanceof HTMLAudioElement) {
+      audioRef.current = audio;
+    }
 
     // Mark signal as triggered
     setSavedSignals(prev => 
@@ -58,10 +67,27 @@ export const useSignalTracker = () => {
     }
   }, [savedSignals, customRingtone]);
 
-  // Ring off button handler - now always functional
+  // Ring off button handler - stops all audio immediately
   const handleRingOff = () => {
     setRingOffButtonPressed(true);
     setTimeout(() => setRingOffButtonPressed(false), 200);
+    
+    // Stop all audio immediately
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    
+    // Stop any Web Audio API sounds
+    if (window.AudioContext || (window as any).webkitAudioContext) {
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContext.close();
+      } catch (err) {
+        console.log('Audio context cleanup error:', err);
+      }
+    }
     
     // Stop ringing if currently ringing
     if (isRinging) {

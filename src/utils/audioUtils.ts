@@ -18,22 +18,23 @@ export const createBeepAudio = () => {
   return oscillator;
 };
 
-export const playCustomRingtone = (customRingtone: string | null): Promise<void> => {
+export const playCustomRingtone = (customRingtone: string | null): Promise<HTMLAudioElement | null> => {
   return new Promise((resolve, reject) => {
     if (customRingtone) {
       const audio = new Audio(customRingtone);
+      audio.loop = true; // Loop the ringtone
       audio.play().then(() => {
-        resolve();
+        resolve(audio);
       }).catch(err => {
         console.log('Error playing custom ringtone:', err);
         // Fallback to default beep
         createBeepAudio();
-        resolve();
+        resolve(null);
       });
     } else {
       // Play default beep
       createBeepAudio();
-      resolve();
+      resolve(null);
     }
   });
 };
