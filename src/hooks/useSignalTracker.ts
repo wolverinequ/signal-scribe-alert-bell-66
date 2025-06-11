@@ -1,17 +1,15 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
-import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
 import { useAudioManager } from './useAudioManager';
+import ScreenControl from '@/plugins/screenControl';
 
 export const useSignalTracker = () => {
   const [signalsText, setSignalsText] = useState('');
   const [savedSignals, setSavedSignals] = useState<Signal[]>([]);
   const [isRinging, setIsRinging] = useState(false);
   const [currentRingingSignal, setCurrentRingingSignal] = useState<Signal | null>(null);
-  const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
   const [screenOffButtonPressed, setScreenOffButtonPressed] = useState(false);
@@ -20,14 +18,17 @@ export const useSignalTracker = () => {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
-  // Ring notification
+  // Ring notification with native wake lock
   const triggerRing = async (signal: Signal) => {
     setIsRinging(true);
     setCurrentRingingSignal(signal);
     
-    // Wake up screen if supported
-    const lock = await requestWakeLock();
-    setWakeLock(lock);
+    // Use native wake lock
+    try {
+      await ScreenControl.acquireWakeLock();
+    } catch (error) {
+      console.log('Failed to acquire native wake lock:', error);
+    }
 
     // Play custom ringtone or default beep
     await playCustomRingtone(customRingtone);
@@ -59,7 +60,7 @@ export const useSignalTracker = () => {
     }
   }, [savedSignals, customRingtone]);
 
-  // Ring off button handlers
+  // Ring off button handlers with native functionality
   const handleRingOffStart = () => {
     setRingOffButtonPressed(true);
     
@@ -82,8 +83,13 @@ export const useSignalTracker = () => {
     if (isRinging) {
       setIsRinging(false);
       setCurrentRingingSignal(null);
-      releaseWakeLock(wakeLock);
-      setWakeLock(null);
+      
+      // Release native wake lock
+      try {
+        ScreenControl.releaseWakeLock();
+      } catch (error) {
+        console.log('Failed to release native wake lock:', error);
+      }
     }
   };
 
@@ -96,42 +102,16 @@ export const useSignalTracker = () => {
     setSavedSignals(signals);
   };
 
-  // Screen off button handler
-  const handleScreenOff = () => {
+  // Native screen off button handler
+  const handleScreenOff = async () => {
     setScreenOffButtonPressed(true);
     setTimeout(() => setScreenOffButtonPressed(false), 200);
     
-    // Turn off the screen by requesting screen wake lock and then releasing it
-    // This is a workaround as there's no direct API to turn off screen
-    if ('wakeLock' in navigator) {
-      navigator.wakeLock.request('screen').then((lock) => {
-        // Immediately release to simulate screen off
-        lock.release();
-        
-        // Also try to minimize/blur the window
-        if (window.blur) {
-          window.blur();
-        }
-        
-        // Hide the page content as a visual cue
-        document.body.style.backgroundColor = '#000';
-        document.body.style.color = '#000';
-        
-        // Restore after a short delay
-        setTimeout(() => {
-          document.body.style.backgroundColor = '';
-          document.body.style.color = '';
-        }, 1000);
-      }).catch(() => {
-        // Fallback: just hide content briefly
-        document.body.style.backgroundColor = '#000';
-        document.body.style.color = '#000';
-        
-        setTimeout(() => {
-          document.body.style.backgroundColor = '';
-          document.body.style.color = '';
-        }, 1000);
-      });
+    try {
+      await ScreenControl.turnOffScreen();
+      console.log('Screen turned off successfully');
+    } catch (error) {
+      console.log('Failed to turn off screen:', error);
     }
   };
 

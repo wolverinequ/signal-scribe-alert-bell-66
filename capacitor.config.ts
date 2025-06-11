@@ -25,7 +25,19 @@ const config: CapacitorConfig = {
       layoutName: "launch_screen",
       useDialog: true,
     },
+    KeepAwake: {
+      enabled: true
+    }
   },
+  android: {
+    allowMixedContent: true,
+    permissions: [
+      'android.permission.WAKE_LOCK',
+      'android.permission.VIBRATE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.READ_EXTERNAL_STORAGE'
+    ]
+  }
 };
 
 export default config;
