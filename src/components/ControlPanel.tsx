@@ -70,9 +70,9 @@ const ControlPanel = ({
         <Button
           onClick={handleSaveClick}
           variant="default"
-          className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none ${
-            saveButtonPressed ? 'scale-95 opacity-80' : 'hover:bg-primary/90'
-          }`}
+          className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none bg-primary text-primary-foreground hover:bg-primary/90 ${
+            saveButtonPressed ? 'scale-95 opacity-80' : ''
+          } ${!signalsText.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
           disabled={!signalsText.trim()}
           style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
         >
