@@ -36,7 +36,7 @@ export const useSignalTracker = () => {
     }
 
     // Play custom ringtone or default beep and track audio instances
-    const audio = await playCustomRingtone(customRingtone);
+    const audio = await playCustomRingtone(customRingtone, audioContextsRef);
     if (audio instanceof HTMLAudioElement) {
       audioInstancesRef.current.push(audio);
     }
