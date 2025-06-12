@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
@@ -21,19 +20,67 @@ export const useSignalTracker = () => {
   const audioContextsRef = useRef<AudioContext[]>([]);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
-  // Ring notification
+  // Enhanced mobile screen wake function
+  const wakeUpMobileScreen = async () => {
+    try {
+      // Request wake lock to keep screen on
+      const lock = await requestWakeLock();
+      setWakeLock(lock);
+
+      // Additional mobile wake-up techniques
+      if (document.hidden) {
+        // Try to focus the window
+        window.focus();
+        
+        // Trigger user interaction events that might wake the screen
+        document.dispatchEvent(new Event('visibilitychange'));
+        document.dispatchEvent(new Event('touchstart', { bubbles: true }));
+        document.dispatchEvent(new Event('click', { bubbles: true }));
+      }
+
+      // For mobile browsers, try to make the page visible
+      if ('wakeLock' in navigator) {
+        console.log('Wake lock requested for screen activation');
+      }
+
+      // Vibration to help wake the device (if supported)
+      if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+      }
+
+      // Show notification to wake screen
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('Signal Alert!', {
+          body: 'Trading signal notification',
+          icon: '/placeholder.svg',
+          badge: '/placeholder.svg',
+          vibrate: [200, 100, 200],
+          tag: 'signal-alert',
+          requireInteraction: true
+        });
+
+        // Auto-close notification after a few seconds
+        setTimeout(() => {
+          notification.close();
+        }, 5000);
+      }
+
+      return lock;
+    } catch (error) {
+      console.log('Wake lock request failed:', error);
+      return null;
+    }
+  };
+
+  // Ring notification with enhanced mobile wake
   const triggerRing = async (signal: Signal) => {
     setIsRinging(true);
     setCurrentRingingSignal(signal);
     
-    // Wake up screen if supported
-    const lock = await requestWakeLock();
-    setWakeLock(lock);
-
-    // Wake up screen on mobile by trying to focus the window
-    if (document.hidden) {
-      window.focus();
-    }
+    console.log('Alert triggered - attempting to wake mobile screen');
+    
+    // Wake up mobile screen immediately
+    await wakeUpMobileScreen();
 
     // Play custom ringtone or default beep and track audio instances
     const audio = await playCustomRingtone(customRingtone, audioContextsRef);

@@ -1,4 +1,3 @@
-
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
@@ -22,6 +21,19 @@ if ('Notification' in window && Notification.permission === 'default') {
     console.log('Notification permission:', permission);
   });
 }
+
+// Request wake lock permission (will be granted automatically on user interaction)
+if ('wakeLock' in navigator) {
+  console.log('Wake Lock API is supported');
+}
+
+// Log available mobile wake features
+console.log('Mobile wake features available:', {
+  wakeLock: 'wakeLock' in navigator,
+  notifications: 'Notification' in window,
+  vibration: 'vibrate' in navigator,
+  serviceWorker: 'serviceWorker' in navigator
+});
 
 // Prevent zoom on mobile
 document.addEventListener('touchstart', (event) => {

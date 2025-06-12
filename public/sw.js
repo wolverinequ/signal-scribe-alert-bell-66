@@ -22,7 +22,7 @@ async function checkSignals() {
   console.log('Checking signals in background');
 }
 
-// Handle notification clicks
+// Handle notification clicks - focus the app and wake screen
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
@@ -36,18 +36,30 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Handle push notifications for mobile
+// Enhanced push notifications for mobile screen wake
 self.addEventListener('push', (event) => {
   const options = {
-    body: event.data ? event.data.text() : 'Signal notification',
+    body: event.data ? event.data.text() : 'Signal notification - Time to trade!',
     icon: '/placeholder.svg',
     badge: '/placeholder.svg',
-    vibrate: [200, 100, 200],
+    vibrate: [200, 100, 200, 100, 200],
     tag: 'signal-notification',
-    requireInteraction: true
+    requireInteraction: true,
+    silent: false,
+    renotify: true,
+    actions: [
+      {
+        action: 'view',
+        title: 'View Signal'
+      },
+      {
+        action: 'dismiss',
+        title: 'Dismiss'
+      }
+    ]
   };
 
   event.waitUntil(
-    self.registration.showNotification('Signal Tracker', options)
+    self.registration.showNotification('🚨 Trading Signal Alert!', options)
   );
 });

@@ -23,7 +23,10 @@
   "permissions": [
     "notifications",
     "vibrate",
-    "wake-lock"
+    "wake-lock",
+    "screen-wake-lock"
   ],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "scope": "/",
+  "categories": ["business", "finance", "productivity"]
 }
