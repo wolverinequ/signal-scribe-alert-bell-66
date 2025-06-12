@@ -1,3 +1,4 @@
+
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
@@ -15,24 +16,38 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Request notification permission on mobile
+// Request notification permission on mobile with enhanced priority
 if ('Notification' in window && Notification.permission === 'default') {
   Notification.requestPermission().then((permission) => {
     console.log('Notification permission:', permission);
+    if (permission === 'granted') {
+      console.log('✅ Notifications enabled - Screen wake alerts will work');
+    } else {
+      console.log('❌ Notifications denied - Screen wake may not work properly');
+    }
   });
 }
 
 // Request wake lock permission (will be granted automatically on user interaction)
 if ('wakeLock' in navigator) {
-  console.log('Wake Lock API is supported');
+  console.log('✅ Wake Lock API is supported - Screen will stay awake during alerts');
+} else {
+  console.log('❌ Wake Lock API not supported - Screen may turn off during alerts');
 }
 
-// Log available mobile wake features
+// Log available mobile wake features (removed vibration)
 console.log('Mobile wake features available:', {
   wakeLock: 'wakeLock' in navigator,
   notifications: 'Notification' in window,
-  vibration: 'vibrate' in navigator,
-  serviceWorker: 'serviceWorker' in navigator
+  serviceWorker: 'serviceWorker' in navigator,
+  fullscreen: 'requestFullscreen' in document.documentElement
+});
+
+// Enhanced screen wake on page visibility change
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    console.log('Page became visible - Screen wake successful');
+  }
 });
 
 // Prevent zoom on mobile

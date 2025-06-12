@@ -20,53 +20,109 @@ export const useSignalTracker = () => {
   const audioContextsRef = useRef<AudioContext[]>([]);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
-  // Enhanced mobile screen wake function
+  // Enhanced mobile screen wake function for Android
   const wakeUpMobileScreen = async () => {
     try {
-      // Request wake lock to keep screen on
+      console.log('Starting aggressive screen wake sequence...');
+      
+      // 1. Request wake lock immediately
       const lock = await requestWakeLock();
       setWakeLock(lock);
 
-      // Additional mobile wake-up techniques
+      // 2. Force document visibility change events
       if (document.hidden) {
-        // Try to focus the window
+        // Dispatch multiple visibility events
+        document.dispatchEvent(new Event('visibilitychange'));
+        document.dispatchEvent(new Event('focus'));
+        window.dispatchEvent(new Event('focus'));
+        
+        // Try to focus the window aggressively
         window.focus();
         
-        // Trigger user interaction events that might wake the screen
-        document.dispatchEvent(new Event('visibilitychange'));
-        document.dispatchEvent(new Event('touchstart', { bubbles: true }));
-        document.dispatchEvent(new Event('click', { bubbles: true }));
+        // Simulate user interaction to wake screen
+        const clickEvent = new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        });
+        document.body.dispatchEvent(clickEvent);
+        
+        // Simulate touch events for mobile
+        const touchEvent = new TouchEvent('touchstart', {
+          bubbles: true,
+          cancelable: true,
+          touches: [] as any
+        });
+        document.body.dispatchEvent(touchEvent);
       }
 
-      // For mobile browsers, try to make the page visible
-      if ('wakeLock' in navigator) {
-        console.log('Wake lock requested for screen activation');
-      }
-
-      // Vibration to help wake the device (if supported)
-      if ('vibrate' in navigator) {
-        navigator.vibrate([200, 100, 200, 100, 200]);
-      }
-
-      // Show notification to wake screen
+      // 3. Create fullscreen notification with high priority
       if ('Notification' in window && Notification.permission === 'granted') {
-        const notification = new Notification('Signal Alert!', {
-          body: 'Trading signal notification',
+        const notification = new Notification('🚨 TRADING SIGNAL ALERT! 🚨', {
+          body: 'Important trading signal is ready - Check now!',
           icon: '/placeholder.svg',
           badge: '/placeholder.svg',
-          tag: 'signal-alert',
-          requireInteraction: true
+          tag: 'urgent-signal-alert',
+          requireInteraction: true,
+          silent: false,
+          renotify: true
         });
 
-        // Auto-close notification after a few seconds
+        // Keep notification visible longer
         setTimeout(() => {
           notification.close();
-        }, 5000);
+        }, 10000);
       }
 
+      // 4. Try to request fullscreen to force screen activation
+      try {
+        if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+          // Exit fullscreen after a moment
+          setTimeout(() => {
+            if (document.exitFullscreen) {
+              document.exitFullscreen().catch(() => {});
+            }
+          }, 1000);
+        }
+      } catch (fullscreenError) {
+        console.log('Fullscreen wake attempt failed:', fullscreenError);
+      }
+
+      // 5. Create a temporary bright overlay to force screen brightness
+      const wakeOverlay = document.createElement('div');
+      wakeOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: white;
+        z-index: 999999;
+        opacity: 1;
+        pointer-events: none;
+      `;
+      document.body.appendChild(wakeOverlay);
+      
+      // Remove overlay after brief flash
+      setTimeout(() => {
+        if (document.body.contains(wakeOverlay)) {
+          document.body.removeChild(wakeOverlay);
+        }
+      }, 200);
+
+      // 6. Force page refresh if still hidden (last resort)
+      setTimeout(() => {
+        if (document.hidden) {
+          console.log('Page still hidden, attempting location refresh...');
+          window.location.href = window.location.href + '#wake';
+        }
+      }, 1000);
+
+      console.log('Screen wake sequence completed');
       return lock;
     } catch (error) {
-      console.log('Wake lock request failed:', error);
+      console.log('Screen wake failed:', error);
       return null;
     }
   };
@@ -76,9 +132,9 @@ export const useSignalTracker = () => {
     setIsRinging(true);
     setCurrentRingingSignal(signal);
     
-    console.log('Alert triggered - attempting to wake mobile screen');
+    console.log('🚨 ALERT TRIGGERED - Attempting aggressive screen wake for Android');
     
-    // Wake up mobile screen immediately
+    // Wake up mobile screen with maximum effort
     await wakeUpMobileScreen();
 
     // Play custom ringtone or default beep and track audio instances
