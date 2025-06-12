@@ -64,8 +64,7 @@ export const useSignalTracker = () => {
           badge: '/placeholder.svg',
           tag: 'urgent-signal-alert',
           requireInteraction: true,
-          silent: false,
-          renotify: true
+          silent: false
         });
 
         // Keep notification visible longer
