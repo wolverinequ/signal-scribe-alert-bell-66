@@ -54,7 +54,6 @@ export const useSignalTracker = () => {
           body: 'Trading signal notification',
           icon: '/placeholder.svg',
           badge: '/placeholder.svg',
-          vibrate: [200, 100, 200],
           tag: 'signal-alert',
           requireInteraction: true
         });
