@@ -22,50 +22,32 @@ async function checkSignals() {
   console.log('Checking signals in background');
 }
 
-// Handle notification clicks - focus the app and wake screen aggressively
+// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
   event.waitUntil(
     self.clients.matchAll().then((clients) => {
       if (clients.length > 0) {
-        // Focus existing client and attempt screen wake
-        return clients[0].focus().then(() => {
-          // Send message to client to trigger screen wake
-          return clients[0].postMessage({
-            type: 'WAKE_SCREEN',
-            source: 'notification_click'
-          });
-        });
+        return clients[0].focus();
       }
       return self.clients.openWindow('/');
     })
   );
 });
 
-// Enhanced push notifications for mobile screen wake (no vibration)
+// Handle push notifications for mobile
 self.addEventListener('push', (event) => {
   const options = {
-    body: event.data ? event.data.text() : '🚨 Signal notification - Time to trade!',
+    body: event.data ? event.data.text() : 'Signal notification',
     icon: '/placeholder.svg',
     badge: '/placeholder.svg',
+    vibrate: [200, 100, 200],
     tag: 'signal-notification',
-    requireInteraction: true,
-    silent: false,
-    renotify: true,
-    actions: [
-      {
-        action: 'view',
-        title: 'View Signal'
-      },
-      {
-        action: 'dismiss',
-        title: 'Dismiss'
-      }
-    ]
+    requireInteraction: true
   };
 
   event.waitUntil(
-    self.registration.showNotification('🚨 Trading Signal Alert!', options)
+    self.registration.showNotification('Signal Tracker', options)
   );
 });
