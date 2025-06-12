@@ -3,7 +3,6 @@ import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
-import { triggerAndroidScreenWake, sendWakeMessageToServiceWorker, requestAndroidPermissions } from '@/utils/androidWakeUtils';
 import { useAudioManager } from './useAudioManager';
 
 export const useSignalTracker = () => {
@@ -21,39 +20,46 @@ export const useSignalTracker = () => {
   const audioContextsRef = useRef<AudioContext[]>([]);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
-  // Initialize Android permissions on component mount
-  useEffect(() => {
-    requestAndroidPermissions();
-  }, []);
-
-  // Enhanced comprehensive screen wake function
-  const comprehensiveScreenWake = async (): Promise<boolean> => {
-    console.log('🚨 Starting COMPREHENSIVE screen wake sequence');
-    let wakeSuccess = false;
-    
+  // Enhanced mobile screen wake function for Android
+  const wakeUpMobileScreen = async () => {
     try {
-      // Step 1: Try Android native wake first
-      const androidWakeResult = await triggerAndroidScreenWake();
-      if (androidWakeResult) {
-        console.log('✅ Android native wake triggered');
-        wakeSuccess = true;
-      }
+      console.log('Starting aggressive screen wake sequence...');
       
-      // Step 2: Service worker wake notification
-      sendWakeMessageToServiceWorker();
-      
-      // Step 3: Request wake lock immediately
+      // 1. Request wake lock immediately
       const lock = await requestWakeLock();
       setWakeLock(lock);
-      if (lock) {
-        console.log('✅ Wake lock acquired');
-        wakeSuccess = true;
+
+      // 2. Force document visibility change events
+      if (document.hidden) {
+        // Dispatch multiple visibility events
+        document.dispatchEvent(new Event('visibilitychange'));
+        document.dispatchEvent(new Event('focus'));
+        window.dispatchEvent(new Event('focus'));
+        
+        // Try to focus the window aggressively
+        window.focus();
+        
+        // Simulate user interaction to wake screen
+        const clickEvent = new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        });
+        document.body.dispatchEvent(clickEvent);
+        
+        // Simulate touch events for mobile
+        const touchEvent = new TouchEvent('touchstart', {
+          bubbles: true,
+          cancelable: true,
+          touches: [] as any
+        });
+        document.body.dispatchEvent(touchEvent);
       }
 
-      // Step 4: High-priority browser notification
+      // 3. Create fullscreen notification with high priority
       if ('Notification' in window && Notification.permission === 'granted') {
         const notification = new Notification('🚨 TRADING SIGNAL ALERT! 🚨', {
-          body: 'URGENT: Important trading signal detected - Check NOW!',
+          body: 'Important trading signal is ready - Check now!',
           icon: '/placeholder.svg',
           badge: '/placeholder.svg',
           tag: 'urgent-signal-alert',
@@ -64,48 +70,25 @@ export const useSignalTracker = () => {
         // Keep notification visible longer
         setTimeout(() => {
           notification.close();
-        }, 15000);
-        
-        console.log('✅ Browser notification triggered');
-        wakeSuccess = true;
+        }, 10000);
       }
 
-      // Step 5: Multiple document/window focus attempts
-      if (document.hidden) {
-        // Dispatch multiple visibility and focus events
-        document.dispatchEvent(new Event('visibilitychange'));
-        document.dispatchEvent(new Event('focus'));
-        window.dispatchEvent(new Event('focus'));
-        
-        // Force window focus
-        window.focus();
-        
-        // Simulate user interactions
-        const events = ['click', 'touchstart', 'keydown'];
-        events.forEach(eventType => {
-          const event = new Event(eventType, { bubbles: true, cancelable: true });
-          document.body.dispatchEvent(event);
-        });
-        
-        console.log('✅ Focus events dispatched');
-      }
-
-      // Step 6: Fullscreen wake attempt
+      // 4. Try to request fullscreen to force screen activation
       try {
         if (document.documentElement.requestFullscreen) {
           await document.documentElement.requestFullscreen();
+          // Exit fullscreen after a moment
           setTimeout(() => {
             if (document.exitFullscreen) {
               document.exitFullscreen().catch(() => {});
             }
-          }, 1500);
-          console.log('✅ Fullscreen wake attempted');
+          }, 1000);
         }
       } catch (fullscreenError) {
-        console.log('⚠️ Fullscreen wake failed:', fullscreenError);
+        console.log('Fullscreen wake attempt failed:', fullscreenError);
       }
 
-      // Step 7: Bright flash overlay for maximum wake effect
+      // 5. Create a temporary bright overlay to force screen brightness
       const wakeOverlay = document.createElement('div');
       wakeOverlay.style.cssText = `
         position: fixed;
@@ -113,73 +96,45 @@ export const useSignalTracker = () => {
         left: 0;
         width: 100vw;
         height: 100vh;
-        background: linear-gradient(45deg, #fff, #ff0000, #fff, #ff0000);
-        z-index: 9999999;
+        background: white;
+        z-index: 999999;
         opacity: 1;
         pointer-events: none;
-        animation: flash 0.5s ease-in-out 3;
       `;
-      
-      // Add flash animation
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes flash {
-          0%, 100% { opacity: 1; background: white; }
-          50% { opacity: 0.8; background: red; }
-        }
-      `;
-      document.head.appendChild(style);
       document.body.appendChild(wakeOverlay);
       
-      // Remove overlay and style after flashing
+      // Remove overlay after brief flash
       setTimeout(() => {
         if (document.body.contains(wakeOverlay)) {
           document.body.removeChild(wakeOverlay);
         }
-        if (document.head.contains(style)) {
-          document.head.removeChild(style);
+      }, 200);
+
+      // 6. Force page refresh if still hidden (last resort)
+      setTimeout(() => {
+        if (document.hidden) {
+          console.log('Page still hidden, attempting location refresh...');
+          window.location.href = window.location.href + '#wake';
         }
-      }, 2000);
+      }, 1000);
 
-      // Step 8: Audio-based wake (loud beeps)
-      try {
-        const audioContext = new AudioContext();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 1000; // High frequency for wake
-        oscillator.type = 'sawtooth';
-        gainNode.gain.value = 0.8; // Loud volume
-        
-        oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.2);
-        
-        console.log('✅ Audio wake beep triggered');
-      } catch (audioError) {
-        console.log('⚠️ Audio wake failed:', audioError);
-      }
-
-      console.log(`🎯 Comprehensive wake sequence completed. Success: ${wakeSuccess}`);
-      return wakeSuccess;
-      
+      console.log('Screen wake sequence completed');
+      return lock;
     } catch (error) {
-      console.error('❌ Comprehensive screen wake failed:', error);
-      return false;
+      console.log('Screen wake failed:', error);
+      return null;
     }
   };
 
-  // Ring notification with enhanced wake sequence
+  // Ring notification with enhanced mobile wake
   const triggerRing = async (signal: Signal) => {
     setIsRinging(true);
     setCurrentRingingSignal(signal);
     
-    console.log('🚨 SIGNAL ALERT TRIGGERED - Starting comprehensive wake sequence');
+    console.log('🚨 ALERT TRIGGERED - Attempting aggressive screen wake for Android');
     
-    // Execute comprehensive wake sequence
-    await comprehensiveScreenWake();
+    // Wake up mobile screen with maximum effort
+    await wakeUpMobileScreen();
 
     // Play custom ringtone or default beep and track audio instances
     const audio = await playCustomRingtone(customRingtone, audioContextsRef);
