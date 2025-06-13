@@ -22,12 +22,15 @@ export const sendToServiceWorker = (message: any) => {
 export const scheduleBackgroundSignalCheck = (signals: any[]) => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then((registration) => {
-      if (registration.sync) {
+      // Check if sync is available (it's not in all browsers/contexts)
+      if ('sync' in registration) {
         try {
-          return registration.sync.register('signal-check');
+          return (registration as any).sync.register('signal-check');
         } catch (error) {
           console.log('Background sync registration failed:', error);
         }
+      } else {
+        console.log('Background sync not supported');
       }
     });
   }

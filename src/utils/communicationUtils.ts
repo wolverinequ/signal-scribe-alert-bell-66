@@ -84,8 +84,7 @@ export class SignalCommunicator {
           body,
           icon: '/placeholder.svg',
           tag: 'signal-tracker-ring',
-          requireInteraction: true,
-          vibrate: [200, 100, 200]
+          requireInteraction: true
         });
         
         // Auto close after 5 seconds
