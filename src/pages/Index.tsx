@@ -26,7 +26,7 @@ const Index = () => {
   } = useSignalTracker();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
       <SignalInput
         signalsText={signalsText}
         onSignalsTextChange={setSignalsText}
@@ -51,12 +51,6 @@ const Index = () => {
         onSubmit={handleAntidelaySubmit}
         onCancel={handleAntidelayCancel}
       />
-
-      {antidelaySeconds > 0 && (
-        <div className="fixed bottom-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm">
-          Antidelay: {antidelaySeconds}s
-        </div>
-      )}
     </div>
   );
 };

@@ -15,7 +15,7 @@ export const useSignalTracker = () => {
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
-  const [antidelaySeconds, setAntidelaySeconds] = useState(0);
+  const [antidelaySeconds, setAntidelaySeconds] = useState(15); // Changed default to 15
   const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
   const [antidelayInput, setAntidelayInput] = useState('');
   
@@ -23,6 +23,7 @@ export const useSignalTracker = () => {
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const audioContextsRef = useRef<AudioContext[]>([]);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressRef = useRef(false);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
   // Ring notification
@@ -120,24 +121,32 @@ export const useSignalTracker = () => {
   };
 
   // Set Ring button handlers
-  const handleSetRingMouseDown = () => {
+  const handleSetRingMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setSetRingButtonPressed(true);
+    isLongPressRef.current = false;
+    
     longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
       // Long press detected - show antidelay dialog
       setShowAntidelayDialog(true);
       setAntidelayInput(antidelaySeconds.toString());
     }, 3000);
   };
 
-  const handleSetRingMouseUp = () => {
+  const handleSetRingMouseUp = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setSetRingButtonPressed(false);
+    
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
     
-    // If dialog is not showing, it was a short press - trigger ringtone selection
-    if (!showAntidelayDialog) {
+    // If it wasn't a long press and dialog is not showing, trigger ringtone selection
+    if (!isLongPressRef.current && !showAntidelayDialog) {
       triggerRingtoneSelection();
     }
   };

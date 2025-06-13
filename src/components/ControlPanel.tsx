@@ -10,8 +10,8 @@ interface ControlPanelProps {
   setRingButtonPressed: boolean;
   onRingOff: () => void;
   onSaveSignals: () => void;
-  onSetRingMouseDown: () => void;
-  onSetRingMouseUp: () => void;
+  onSetRingMouseDown: (e: React.MouseEvent | React.TouchEvent) => void;
+  onSetRingMouseUp: (e: React.MouseEvent | React.TouchEvent) => void;
   onSetRingMouseLeave: () => void;
 }
 
@@ -52,8 +52,8 @@ const ControlPanel = ({
         <Button
           onClick={handleRingOffClick}
           variant="outline"
-          className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none ${
-            ringOffButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-accent'
+          className={`h-16 flex flex-col gap-1 transition-transform duration-200 select-none hover:bg-background focus:bg-background active:bg-background ${
+            ringOffButtonPressed ? 'scale-95' : ''
           }`}
           style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
         >
@@ -64,8 +64,8 @@ const ControlPanel = ({
         <Button
           onClick={handleSaveClick}
           variant="default"
-          className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none bg-primary text-primary-foreground hover:bg-primary/90 ${
-            saveButtonPressed ? 'scale-95 opacity-80' : ''
+          className={`h-16 flex flex-col gap-1 transition-transform duration-200 select-none bg-primary text-primary-foreground hover:bg-primary focus:bg-primary active:bg-primary ${
+            saveButtonPressed ? 'scale-95' : ''
           } ${!signalsText.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
           disabled={!signalsText.trim()}
           style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
@@ -81,8 +81,8 @@ const ControlPanel = ({
           onTouchStart={onSetRingMouseDown}
           onTouchEnd={onSetRingMouseUp}
           variant="outline"
-          className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none ${
-            setRingButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-accent'
+          className={`h-16 flex flex-col gap-1 transition-transform duration-200 select-none hover:bg-background focus:bg-background active:bg-background ${
+            setRingButtonPressed ? 'scale-95' : ''
           }`}
           style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
         >

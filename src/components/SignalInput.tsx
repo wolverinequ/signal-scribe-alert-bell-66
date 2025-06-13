@@ -19,6 +19,7 @@ const SignalInput = ({ signalsText, onSignalsTextChange }: SignalInputProps) => 
         onChange={(e) => onSignalsTextChange(e.target.value)}
         placeholder="Enter signals here, one per line,&#10;Format: TIMEFRAME;ASSET;HH:MM;DIRECTION&#10;Example:&#10;1H;EURUSD;14:30;CALL&#10;5M;GBPUSD;15:45;PUT&#10;15M;USDJPY;16:00;CALL"
         className="h-[calc(100vh-180px)] text-base font-mono resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+        style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
       />
     </div>
   );
