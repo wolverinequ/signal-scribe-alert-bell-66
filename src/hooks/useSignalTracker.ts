@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
 import { useAudioManager } from './useAudioManager';
+import { storeSignalsInBackground, scheduleBackgroundSync } from '@/utils/backgroundSync';
 
 export const useSignalTracker = () => {
   const [signalsText, setSignalsText] = useState('');
@@ -15,7 +15,7 @@ export const useSignalTracker = () => {
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
-  const [antidelaySeconds, setAntidelaySeconds] = useState(15); // Changed default to 15
+  const [antidelaySeconds, setAntidelaySeconds] = useState(15);
   const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
   const [antidelayInput, setAntidelayInput] = useState('');
   
@@ -25,6 +25,17 @@ export const useSignalTracker = () => {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
+
+  // Listen for service worker messages
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'TRIGGER_SIGNAL') {
+          triggerRing(event.data.signal);
+        }
+      });
+    }
+  }, [customRingtone]);
 
   // Ring notification
   const triggerRing = async (signal: Signal) => {
@@ -112,12 +123,18 @@ export const useSignalTracker = () => {
   };
 
   // Save signals button handler
-  const handleSaveSignals = () => {
+  const handleSaveSignals = async () => {
     setSaveButtonPressed(true);
     setTimeout(() => setSaveButtonPressed(false), 200);
     
     const signals = parseSignals(signalsText);
     setSavedSignals(signals);
+    
+    // Store signals in IndexedDB for background access
+    await storeSignalsInBackground(signals, antidelaySeconds);
+    
+    // Schedule background sync
+    scheduleBackgroundSync();
   };
 
   // Set Ring button handlers
@@ -129,7 +146,6 @@ export const useSignalTracker = () => {
     
     longPressTimerRef.current = setTimeout(() => {
       isLongPressRef.current = true;
-      // Long press detected - show antidelay dialog
       setShowAntidelayDialog(true);
       setAntidelayInput(antidelaySeconds.toString());
     }, 3000);
@@ -145,7 +161,6 @@ export const useSignalTracker = () => {
       longPressTimerRef.current = null;
     }
     
-    // If it wasn't a long press and dialog is not showing, trigger ringtone selection
     if (!isLongPressRef.current && !showAntidelayDialog) {
       triggerRingtoneSelection();
     }
@@ -160,12 +175,17 @@ export const useSignalTracker = () => {
   };
 
   // Antidelay dialog handlers
-  const handleAntidelaySubmit = () => {
+  const handleAntidelaySubmit = async () => {
     const seconds = parseInt(antidelayInput);
     if (!isNaN(seconds) && seconds >= 0 && seconds <= 99) {
       setAntidelaySeconds(seconds);
       setShowAntidelayDialog(false);
       setAntidelayInput('');
+      
+      // Update stored signals with new antidelay setting
+      if (savedSignals.length > 0) {
+        await storeSignalsInBackground(savedSignals, seconds);
+      }
     }
   };
 

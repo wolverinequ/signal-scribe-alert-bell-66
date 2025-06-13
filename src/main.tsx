@@ -9,6 +9,13 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
         console.log('SW registered: ', registration);
+        
+        // Request notification permission immediately
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().then((permission) => {
+            console.log('Notification permission:', permission);
+          });
+        }
       })
       .catch((registrationError) => {
         console.log('SW registration failed: ', registrationError);
@@ -16,12 +23,14 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Request notification permission on mobile
-if ('Notification' in window && Notification.permission === 'default') {
-  Notification.requestPermission().then((permission) => {
-    console.log('Notification permission:', permission);
-  });
-}
+// Enhanced page visibility handling for mobile
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    console.log('App went to background');
+  } else {
+    console.log('App came to foreground');
+  }
+});
 
 // Prevent zoom on mobile
 document.addEventListener('touchstart', (event) => {
