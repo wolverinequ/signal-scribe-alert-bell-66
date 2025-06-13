@@ -3,6 +3,7 @@ import React from 'react';
 import { useSignalTracker } from '@/hooks/useSignalTracker';
 import SignalInput from '@/components/SignalInput';
 import ControlPanel from '@/components/ControlPanel';
+import AntidelayDialog from '@/components/AntidelayDialog';
 
 const Index = () => {
   const {
@@ -11,9 +12,17 @@ const Index = () => {
     saveButtonPressed,
     ringOffButtonPressed,
     setRingButtonPressed,
+    showAntidelayDialog,
+    antidelayInput,
+    setAntidelayInput,
+    antidelaySeconds,
     handleRingOff,
     handleSaveSignals,
-    handleSetRing
+    handleSetRingMouseDown,
+    handleSetRingMouseUp,
+    handleSetRingMouseLeave,
+    handleAntidelaySubmit,
+    handleAntidelayCancel
   } = useSignalTracker();
 
   return (
@@ -30,8 +39,24 @@ const Index = () => {
         setRingButtonPressed={setRingButtonPressed}
         onRingOff={handleRingOff}
         onSaveSignals={handleSaveSignals}
-        onSetRing={handleSetRing}
+        onSetRingMouseDown={handleSetRingMouseDown}
+        onSetRingMouseUp={handleSetRingMouseUp}
+        onSetRingMouseLeave={handleSetRingMouseLeave}
       />
+
+      <AntidelayDialog
+        open={showAntidelayDialog}
+        value={antidelayInput}
+        onChange={setAntidelayInput}
+        onSubmit={handleAntidelaySubmit}
+        onCancel={handleAntidelayCancel}
+      />
+
+      {antidelaySeconds > 0 && (
+        <div className="fixed bottom-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm">
+          Antidelay: {antidelaySeconds}s
+        </div>
+      )}
     </div>
   );
 };

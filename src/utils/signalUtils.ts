@@ -24,8 +24,29 @@ export const parseSignals = (text: string): Signal[] => {
   return signals;
 };
 
-export const checkSignalTime = (signal: Signal): boolean => {
+export const checkSignalTime = (signal: Signal, antidelaySeconds: number = 0): boolean => {
   const now = new Date();
-  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-  return signal.timestamp === currentTime && !signal.triggered;
+  const currentHours = now.getHours();
+  const currentMinutes = now.getMinutes();
+  const currentSeconds = now.getSeconds();
+  
+  // Parse signal timestamp
+  const [signalHours, signalMinutes] = signal.timestamp.split(':').map(Number);
+  
+  // Calculate target time with antidelay
+  const signalDate = new Date();
+  signalDate.setHours(signalHours, signalMinutes, 0, 0);
+  
+  // Subtract antidelay seconds
+  const targetTime = new Date(signalDate.getTime() - (antidelaySeconds * 1000));
+  const targetHours = targetTime.getHours();
+  const targetMinutes = targetTime.getMinutes();
+  const targetSeconds = targetTime.getSeconds();
+  
+  // Check if current time exactly matches target time (precise to the second)
+  const timeMatches = currentHours === targetHours && 
+                     currentMinutes === targetMinutes && 
+                     currentSeconds === targetSeconds;
+  
+  return timeMatches && !signal.triggered;
 };

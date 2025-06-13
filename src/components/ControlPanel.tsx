@@ -10,7 +10,9 @@ interface ControlPanelProps {
   setRingButtonPressed: boolean;
   onRingOff: () => void;
   onSaveSignals: () => void;
-  onSetRing: () => void;
+  onSetRingMouseDown: () => void;
+  onSetRingMouseUp: () => void;
+  onSetRingMouseLeave: () => void;
 }
 
 const ControlPanel = ({
@@ -20,7 +22,9 @@ const ControlPanel = ({
   setRingButtonPressed,
   onRingOff,
   onSaveSignals,
-  onSetRing
+  onSetRingMouseDown,
+  onSetRingMouseUp,
+  onSetRingMouseLeave
 }: ControlPanelProps) => {
   const handleRingOffClick = () => {
     onRingOff();
@@ -34,16 +38,6 @@ const ControlPanel = ({
 
   const handleSaveClick = () => {
     onSaveSignals();
-    // Remove focus after click to return to original color
-    setTimeout(() => {
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-    }, 200);
-  };
-
-  const handleSetRingClick = () => {
-    onSetRing();
     // Remove focus after click to return to original color
     setTimeout(() => {
       if (document.activeElement instanceof HTMLElement) {
@@ -81,7 +75,11 @@ const ControlPanel = ({
         </Button>
 
         <Button
-          onClick={handleSetRingClick}
+          onMouseDown={onSetRingMouseDown}
+          onMouseUp={onSetRingMouseUp}
+          onMouseLeave={onSetRingMouseLeave}
+          onTouchStart={onSetRingMouseDown}
+          onTouchEnd={onSetRingMouseUp}
           variant="outline"
           className={`h-16 flex flex-col gap-1 transition-all duration-200 select-none ${
             setRingButtonPressed ? 'scale-95 bg-muted' : 'hover:bg-accent'

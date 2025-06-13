@@ -15,10 +15,14 @@ export const useSignalTracker = () => {
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
+  const [antidelaySeconds, setAntidelaySeconds] = useState(0);
+  const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
+  const [antidelayInput, setAntidelayInput] = useState('');
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const audioContextsRef = useRef<AudioContext[]>([]);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
   // Ring notification
@@ -49,16 +53,16 @@ export const useSignalTracker = () => {
     );
   };
 
-  // Check signals every minute
+  // Check signals every second for precise timing
   useEffect(() => {
     if (savedSignals.length > 0) {
       intervalRef.current = setInterval(() => {
         savedSignals.forEach(signal => {
-          if (checkSignalTime(signal)) {
+          if (checkSignalTime(signal, antidelaySeconds)) {
             triggerRing(signal);
           }
         });
-      }, 1000); // Check every second for accuracy
+      }, 1000);
 
       return () => {
         if (intervalRef.current) {
@@ -66,7 +70,7 @@ export const useSignalTracker = () => {
         }
       };
     }
-  }, [savedSignals, customRingtone]);
+  }, [savedSignals, customRingtone, antidelaySeconds]);
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = () => {
@@ -115,12 +119,50 @@ export const useSignalTracker = () => {
     setSavedSignals(signals);
   };
 
-  // Set Ring button handler
-  const handleSetRing = () => {
+  // Set Ring button handlers
+  const handleSetRingMouseDown = () => {
     setSetRingButtonPressed(true);
-    setTimeout(() => setSetRingButtonPressed(false), 200);
+    longPressTimerRef.current = setTimeout(() => {
+      // Long press detected - show antidelay dialog
+      setShowAntidelayDialog(true);
+      setAntidelayInput(antidelaySeconds.toString());
+    }, 3000);
+  };
+
+  const handleSetRingMouseUp = () => {
+    setSetRingButtonPressed(false);
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
     
-    triggerRingtoneSelection();
+    // If dialog is not showing, it was a short press - trigger ringtone selection
+    if (!showAntidelayDialog) {
+      triggerRingtoneSelection();
+    }
+  };
+
+  const handleSetRingMouseLeave = () => {
+    setSetRingButtonPressed(false);
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  // Antidelay dialog handlers
+  const handleAntidelaySubmit = () => {
+    const seconds = parseInt(antidelayInput);
+    if (!isNaN(seconds) && seconds >= 0 && seconds <= 99) {
+      setAntidelaySeconds(seconds);
+      setShowAntidelayDialog(false);
+      setAntidelayInput('');
+    }
+  };
+
+  const handleAntidelayCancel = () => {
+    setShowAntidelayDialog(false);
+    setAntidelayInput('');
   };
 
   return {
@@ -129,8 +171,16 @@ export const useSignalTracker = () => {
     saveButtonPressed,
     ringOffButtonPressed,
     setRingButtonPressed,
+    showAntidelayDialog,
+    antidelayInput,
+    setAntidelayInput,
+    antidelaySeconds,
     handleRingOff,
     handleSaveSignals,
-    handleSetRing
+    handleSetRingMouseDown,
+    handleSetRingMouseUp,
+    handleSetRingMouseLeave,
+    handleAntidelaySubmit,
+    handleAntidelayCancel
   };
 };
