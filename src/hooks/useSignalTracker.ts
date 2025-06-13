@@ -1,9 +1,10 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
+import { signalCommunicator } from '@/utils/communicationUtils';
+import { sendToServiceWorker, scheduleBackgroundSignalCheck } from '@/utils/serviceWorkerUtils';
 import { useAudioManager } from './useAudioManager';
 
 export const useSignalTracker = () => {
@@ -24,12 +25,22 @@ export const useSignalTracker = () => {
   const audioContextsRef = useRef<AudioContext[]>([]);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
+  const aboutToRingNotifiedRef = useRef<Set<string>>(new Set());
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
   // Ring notification
   const triggerRing = async (signal: Signal) => {
     setIsRinging(true);
     setCurrentRingingSignal(signal);
+    
+    // Notify other apps that ringing is happening
+    signalCommunicator.notifyRinging(signal);
+    
+    // Send to service worker
+    sendToServiceWorker({
+      type: 'SIGNAL_RINGING',
+      data: { signal }
+    });
     
     // Wake up screen if supported
     const lock = await requestWakeLock();
@@ -54,11 +65,44 @@ export const useSignalTracker = () => {
     );
   };
 
+  // Check for "about to ring" notifications (5 seconds before)
+  const checkAboutToRing = (signal: Signal) => {
+    const signalKey = `${signal.asset}-${signal.timestamp}`;
+    if (aboutToRingNotifiedRef.current.has(signalKey)) {
+      return;
+    }
+
+    const now = new Date();
+    const [signalHours, signalMinutes] = signal.timestamp.split(':').map(Number);
+    
+    const signalDate = new Date();
+    signalDate.setHours(signalHours, signalMinutes, 0, 0);
+    
+    const targetTime = new Date(signalDate.getTime() - (antidelaySeconds * 1000));
+    const aboutToRingTime = new Date(targetTime.getTime() - 5000); // 5 seconds before ring time
+    
+    const timeDiff = Math.abs(now.getTime() - aboutToRingTime.getTime());
+    
+    if (timeDiff <= 1000 && !signal.triggered) { // Within 1 second of "about to ring" time
+      aboutToRingNotifiedRef.current.add(signalKey);
+      signalCommunicator.notifyAboutToRing(signal, 5);
+      
+      sendToServiceWorker({
+        type: 'SIGNAL_ABOUT_TO_RING',
+        data: { signal, secondsUntilRing: 5 }
+      });
+    }
+  };
+
   // Check signals every second for precise timing
   useEffect(() => {
     if (savedSignals.length > 0) {
       intervalRef.current = setInterval(() => {
         savedSignals.forEach(signal => {
+          // Check for about to ring notification
+          checkAboutToRing(signal);
+          
+          // Check for actual ring time
           if (checkSignalTime(signal, antidelaySeconds)) {
             triggerRing(signal);
           }
@@ -77,6 +121,14 @@ export const useSignalTracker = () => {
   const handleRingOff = () => {
     setRingOffButtonPressed(true);
     setTimeout(() => setRingOffButtonPressed(false), 200);
+    
+    // Notify other apps that ringing stopped
+    signalCommunicator.notifyRingStopped();
+    
+    sendToServiceWorker({
+      type: 'RING_STOPPED',
+      data: {}
+    });
     
     // Stop ALL audio instances immediately
     audioInstancesRef.current.forEach(audio => {
@@ -118,6 +170,18 @@ export const useSignalTracker = () => {
     
     const signals = parseSignals(signalsText);
     setSavedSignals(signals);
+    
+    // Store signals in service worker for background processing
+    sendToServiceWorker({
+      type: 'STORE_SIGNALS',
+      data: { signals, antidelaySeconds }
+    });
+    
+    // Schedule background sync
+    scheduleBackgroundSignalCheck(signals);
+    
+    // Reset about to ring notifications
+    aboutToRingNotifiedRef.current.clear();
   };
 
   // Set Ring button handlers
@@ -166,6 +230,14 @@ export const useSignalTracker = () => {
       setAntidelaySeconds(seconds);
       setShowAntidelayDialog(false);
       setAntidelayInput('');
+      
+      // Update service worker with new antidelay setting
+      if (savedSignals.length > 0) {
+        sendToServiceWorker({
+          type: 'STORE_SIGNALS',
+          data: { signals: savedSignals, antidelaySeconds: seconds }
+        });
+      }
     }
   };
 
@@ -173,6 +245,13 @@ export const useSignalTracker = () => {
     setShowAntidelayDialog(false);
     setAntidelayInput('');
   };
+
+  // Cleanup communication on unmount
+  useEffect(() => {
+    return () => {
+      signalCommunicator.cleanup();
+    };
+  }, []);
 
   return {
     signalsText,

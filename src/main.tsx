@@ -1,14 +1,15 @@
-
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { registerSignalServiceWorker } from './utils/serviceWorkerUtils'
 
-// Register service worker for background functionality
+// Register enhanced service worker for signal tracking and communication
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
-        console.log('SW registered: ', registration);
+        console.log('Signal Tracker SW registered: ', registration);
+        registerSignalServiceWorker();
       })
       .catch((registrationError) => {
         console.log('SW registration failed: ', registrationError);
@@ -16,10 +17,10 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Request notification permission on mobile
+// Request notification permission for inter-app communication
 if ('Notification' in window && Notification.permission === 'default') {
   Notification.requestPermission().then((permission) => {
-    console.log('Notification permission:', permission);
+    console.log('Notification permission for inter-app communication:', permission);
   });
 }
 
