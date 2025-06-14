@@ -83,42 +83,20 @@ export const useRingManager = (
     }
   }, [customRingtone, isRingtoneLoaded, onSignalTriggered, getSignalId, wakeLock]);
 
-  // Stable reference for the monitoring conditions
-  const monitoringConditions = useRef({
-    signalsCount: 0,
-    ringtoneLoaded: false,
-    hasCustomRingtone: false
-  });
-
   // Check signals every second for precise timing - only if MP3 is loaded
   useEffect(() => {
-    const newConditions = {
+    console.log('⏰ Signal monitoring effect triggered');
+    console.log('📊 Monitoring conditions:', {
       signalsCount: savedSignals.length,
       ringtoneLoaded: isRingtoneLoaded,
       hasCustomRingtone: !!customRingtone
-    };
-
-    // Only restart monitoring if conditions actually changed
-    const conditionsChanged = 
-      monitoringConditions.current.signalsCount !== newConditions.signalsCount ||
-      monitoringConditions.current.ringtoneLoaded !== newConditions.ringtoneLoaded ||
-      monitoringConditions.current.hasCustomRingtone !== newConditions.hasCustomRingtone;
-
-    if (!conditionsChanged && intervalRef.current) {
-      // Conditions haven't changed and monitoring is already running
-      return;
-    }
-
-    monitoringConditions.current = newConditions;
-
-    console.log('⏰ Signal monitoring effect triggered');
-    console.log('📊 Monitoring conditions:', newConditions);
+    });
 
     // Clear existing interval if any
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
-      console.log('⏹️ Signal monitoring stopped');
+      console.log('⏹️ Previous signal monitoring stopped');
     }
 
     if (savedSignals.length > 0 && isRingtoneLoaded && customRingtone) {
@@ -128,7 +106,10 @@ export const useRingManager = (
         const now = new Date();
         const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
         
-        console.log('⏱️ Checking signals at:', currentTime);
+        // Only log every 10 seconds to reduce console spam
+        if (now.getSeconds() % 10 === 0) {
+          console.log('⏱️ Checking signals at:', currentTime);
+        }
         
         savedSignals.forEach(signal => {
           const signalId = getSignalId(signal);
@@ -144,17 +125,27 @@ export const useRingManager = (
         });
       }, 1000);
     } else {
-      console.log('❌ Signal monitoring not started - missing requirements:', newConditions);
+      console.log('❌ Signal monitoring not started - missing requirements:', {
+        signalsCount: savedSignals.length,
+        ringtoneLoaded: isRingtoneLoaded,
+        hasCustomRingtone: !!customRingtone
+      });
     }
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
-        console.log('⏹️ Signal monitoring stopped');
+        console.log('⏹️ Signal monitoring cleanup - interval cleared');
       }
     };
-  }, [savedSignals, customRingtone, antidelaySeconds, alreadyRangIds, isRingtoneLoaded, triggerRing, getSignalId]);
+  }, [savedSignals.length, !!customRingtone, isRingtoneLoaded, antidelaySeconds]);
+
+  // Separate effect for handling alreadyRangIds changes without restarting monitoring
+  useEffect(() => {
+    // This effect only runs when alreadyRangIds changes, but doesn't restart monitoring
+    console.log('📝 Already triggered signals updated, count:', alreadyRangIds.size);
+  }, [alreadyRangIds]);
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = useCallback(() => {
