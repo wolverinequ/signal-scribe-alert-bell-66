@@ -1,7 +1,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-const RINGTONE_STORAGE_KEY = 'selected_custom_ringtone';
+const RINGTONE_STORAGE_KEY = 'selected_custom_ringtone_data';
+const RINGTONE_NAME_KEY = 'selected_custom_ringtone_name';
 
 export const useAudioManager = () => {
   const [customRingtone, setCustomRingtone] = useState<string | null>(null);
@@ -11,10 +12,28 @@ export const useAudioManager = () => {
 
   // Load from storage when starting
   useEffect(() => {
-    const stored = localStorage.getItem(RINGTONE_STORAGE_KEY);
-    if (stored) {
-      setCustomRingtone(stored);
-      setIsRingtoneLoaded(true);
+    const storedData = localStorage.getItem(RINGTONE_STORAGE_KEY);
+    const storedName = localStorage.getItem(RINGTONE_NAME_KEY);
+    
+    if (storedData && storedName) {
+      try {
+        // Convert base64 back to blob URL
+        const byteCharacters = atob(storedData);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        
+        setCustomRingtone(url);
+        setIsRingtoneLoaded(true);
+        console.log('Loaded ringtone from storage:', storedName);
+      } catch (error) {
+        console.error('Failed to load stored ringtone:', error);
+        setShowStartupDialog(true);
+      }
     } else {
       setShowStartupDialog(true);
     }
@@ -38,17 +57,34 @@ export const useAudioManager = () => {
     // eslint-disable-next-line
   }, []);
 
-  const handleRingtoneSelect = (event: Event) => {
+  const handleRingtoneSelect = async (event: Event) => {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
 
     if (file) {
-      const url = URL.createObjectURL(file);
-      setCustomRingtone(url);
-      setIsRingtoneLoaded(true);
-      setShowStartupDialog(false);
-      localStorage.setItem(RINGTONE_STORAGE_KEY, url);
-      console.log('MP3 ringtone loaded:', file.name);
+      try {
+        // Convert file to base64 for persistent storage
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          const base64Data = result.split(',')[1]; // Remove data:audio/mpeg;base64, prefix
+          
+          // Store the base64 data and filename
+          localStorage.setItem(RINGTONE_STORAGE_KEY, base64Data);
+          localStorage.setItem(RINGTONE_NAME_KEY, file.name);
+          
+          // Create blob URL for immediate use
+          const url = URL.createObjectURL(file);
+          setCustomRingtone(url);
+          setIsRingtoneLoaded(true);
+          setShowStartupDialog(false);
+          
+          console.log('MP3 ringtone loaded and stored:', file.name);
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Failed to process ringtone file:', error);
+      }
     }
   };
 
