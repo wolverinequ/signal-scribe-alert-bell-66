@@ -12,16 +12,11 @@ export const useAntidelayManager = (
   const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
   const [antidelayInput, setAntidelayInput] = useState('');
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
+  const [ringtoneDialogOpen, setRingtoneDialogOpen] = useState(false);
 
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
-  const { 
-    showRingtoneDialog, 
-    openRingtoneDialog, 
-    closeRingtoneDialog,
-    triggerRingtoneSelection,
-    selectDefaultSound
-  } = useAudioManager();
+  const { triggerRingtoneSelection } = useAudioManager();
 
   // Set Ring button handlers
   const handleSetRingMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
@@ -48,10 +43,9 @@ export const useAntidelayManager = (
       longPressTimerRef.current = null;
     }
 
-    // If it wasn't a long press and dialog isn't showing, open ringtone selection dialog
+    // If it wasn't a long press and dialog isn't showing, trigger ringtone selection
     if (!isLongPressRef.current && !showAntidelayDialog) {
-      console.log('🔔 Set Ring button clicked - opening ringtone dialog');
-      openRingtoneDialog();
+      triggerRingtoneSelection();
     }
   };
 
@@ -65,15 +59,7 @@ export const useAntidelayManager = (
 
   // Ringtone select dialog handlers
   const handleSelectCustomSound = () => {
-    console.log('🎵 User selected custom sound');
     triggerRingtoneSelection();
-    closeRingtoneDialog();
-  };
-
-  const handleSelectDefaultSound = () => {
-    console.log('🔊 User selected default sound');
-    selectDefaultSound();
-    closeRingtoneDialog();
   };
 
   // Antidelay dialog handlers
@@ -106,9 +92,9 @@ export const useAntidelayManager = (
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
     handleAntidelayCancel,
-    ringtoneDialogOpen: showRingtoneDialog,
-    closeRingtoneDialog,
+    ringtoneDialogOpen,
+    setRingtoneDialogOpen,
     handleSelectCustomSound,
-    handleSelectDefaultSound,
+    handleSelectDefaultSound: () => {}, // Empty function since we don't support default sounds
   };
 };
