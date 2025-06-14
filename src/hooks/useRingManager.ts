@@ -81,16 +81,45 @@ export const useRingManager = (
       releaseWakeLock(wakeLock);
       setWakeLock(null);
     }
-  }, [customRingtone, isRingtoneLoaded, onSignalTriggered, getSignalId]);
+  }, [customRingtone, isRingtoneLoaded, onSignalTriggered, getSignalId, wakeLock]);
+
+  // Stable reference for the monitoring conditions
+  const monitoringConditions = useRef({
+    signalsCount: 0,
+    ringtoneLoaded: false,
+    hasCustomRingtone: false
+  });
 
   // Check signals every second for precise timing - only if MP3 is loaded
   useEffect(() => {
-    console.log('⏰ Signal monitoring effect triggered');
-    console.log('📊 Monitoring conditions:', {
+    const newConditions = {
       signalsCount: savedSignals.length,
       ringtoneLoaded: isRingtoneLoaded,
       hasCustomRingtone: !!customRingtone
-    });
+    };
+
+    // Only restart monitoring if conditions actually changed
+    const conditionsChanged = 
+      monitoringConditions.current.signalsCount !== newConditions.signalsCount ||
+      monitoringConditions.current.ringtoneLoaded !== newConditions.ringtoneLoaded ||
+      monitoringConditions.current.hasCustomRingtone !== newConditions.hasCustomRingtone;
+
+    if (!conditionsChanged && intervalRef.current) {
+      // Conditions haven't changed and monitoring is already running
+      return;
+    }
+
+    monitoringConditions.current = newConditions;
+
+    console.log('⏰ Signal monitoring effect triggered');
+    console.log('📊 Monitoring conditions:', newConditions);
+
+    // Clear existing interval if any
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+      console.log('⏹️ Signal monitoring stopped');
+    }
 
     if (savedSignals.length > 0 && isRingtoneLoaded && customRingtone) {
       console.log('🚀 Starting signal monitoring with', savedSignals.length, 'signals');
@@ -114,20 +143,17 @@ export const useRingManager = (
           }
         });
       }, 1000);
-
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          console.log('⏹️ Signal monitoring stopped');
-        }
-      };
     } else {
-      console.log('❌ Signal monitoring not started - missing requirements:', {
-        signalsCount: savedSignals.length,
-        ringtoneLoaded: isRingtoneLoaded,
-        hasCustomRingtone: !!customRingtone
-      });
+      console.log('❌ Signal monitoring not started - missing requirements:', newConditions);
     }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        console.log('⏹️ Signal monitoring stopped');
+      }
+    };
   }, [savedSignals, customRingtone, antidelaySeconds, alreadyRangIds, isRingtoneLoaded, triggerRing, getSignalId]);
 
   // Ring off button handler - stops ALL audio immediately
