@@ -1,11 +1,83 @@
 
-export const playCustomRingtone = (customRingtone: string | null): Promise<HTMLAudioElement | null> => {
+// Create a default beep sound using Web Audio API
+const createDefaultBeep = (): Promise<HTMLAudioElement> => {
   return new Promise((resolve, reject) => {
-    if (customRingtone) {
-      const audio = new Audio(customRingtone);
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      // Create a buffer for the beep sound
+      const duration = 0.5; // 500ms beep
+      const sampleRate = audioContext.sampleRate;
+      const buffer = audioContext.createBuffer(1, duration * sampleRate, sampleRate);
+      const data = buffer.getChannelData(0);
+      
+      // Generate a simple beep tone (800 Hz sine wave)
+      for (let i = 0; i < buffer.length; i++) {
+        data[i] = Math.sin(2 * Math.PI * 800 * i / sampleRate) * 0.3;
+        // Apply fade out to avoid clicking
+        if (i > buffer.length * 0.8) {
+          data[i] *= (buffer.length - i) / (buffer.length * 0.2);
+        }
+      }
+      
+      // Create audio element from buffer
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      
+      const destination = audioContext.createMediaStreamDestination();
+      source.connect(destination);
+      
+      const mediaRecorder = new MediaRecorder(destination.stream);
+      const chunks: Blob[] = [];
+      
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.loop = true;
+        resolve(audio);
+      };
+      
+      mediaRecorder.start();
+      source.start();
+      source.stop(audioContext.currentTime + duration);
+      
+      setTimeout(() => {
+        mediaRecorder.stop();
+        audioContext.close();
+      }, duration * 1000 + 100);
+      
+    } catch (error) {
+      console.error('❌ Failed to create default beep, falling back to simple beep:', error);
+      // Fallback: create a simple audio element with a data URL
+      const audio = new Audio();
+      audio.loop = true;
+      // This is a very simple beep sound encoded as base64
+      audio.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAaBC2E1O/LfC0HL4TO8+GJOQgSYrjo8qNVFAxKn9/yu2EaCjWH0+7MfywFLIHO8tiJOAkXZLvt6J5NEAxPqODxtmMcBzqP2O/NeSsFLobL7+ONQQYXZL7w45lNFg1LndvyvGEbBy+F0+7KfSgFK47M9dyOPwkVYLbn7qZnGw7+k9Xq' audio.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAaBC2E1O/LfC0HL';
+      resolve(audio);
+    }
+  });
+};
+
+export const playCustomRingtone = (customRingtone: string | null): Promise<HTMLAudioElement | null> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let audio: HTMLAudioElement;
+      
+      if (customRingtone) {
+        console.log('🎵 Playing custom ringtone...');
+        audio = new Audio(customRingtone);
+      } else {
+        console.log('🎵 Playing default beep sound...');
+        audio = await createDefaultBeep();
+      }
+      
       audio.loop = true;
       audio.preload = 'auto';
-      audio.volume = 1.0; // Ensure full volume
+      audio.volume = 1.0;
       
       // Handle mobile audio restrictions
       const playAudio = async () => {
@@ -29,14 +101,14 @@ export const playCustomRingtone = (customRingtone: string | null): Promise<HTMLA
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             await playPromise;
-            console.log('✅ Custom ringtone playing successfully');
+            console.log('✅ Ringtone playing successfully');
             resolve(audio);
           } else {
-            console.log('✅ Custom ringtone playing successfully (legacy)');
+            console.log('✅ Ringtone playing successfully (legacy)');
             resolve(audio);
           }
         } catch (err) {
-          console.error('❌ Error playing custom ringtone:', err);
+          console.error('❌ Error playing ringtone:', err);
           
           // Try user interaction workaround
           const playOnInteraction = () => {
@@ -80,9 +152,9 @@ export const playCustomRingtone = (customRingtone: string | null): Promise<HTMLA
       // Load the audio
       console.log('🎵 Loading audio file...');
       audio.load();
-    } else {
-      console.log('❌ No custom ringtone available');
-      reject(new Error('No custom ringtone available'));
+    } catch (error) {
+      console.error('❌ Error in playCustomRingtone:', error);
+      reject(error);
     }
   });
 };
