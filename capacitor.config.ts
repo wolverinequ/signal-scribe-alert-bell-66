@@ -48,7 +48,12 @@ const config: CapacitorConfig = {
       "android.permission.USE_FULL_SCREEN_INTENT",
       "android.permission.VIBRATE",
       "android.permission.RECEIVE_BOOT_COMPLETED",
-      "android.permission.FOREGROUND_SERVICE"
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      "android.permission.SCHEDULE_EXACT_ALARM",
+      "android.permission.USE_EXACT_ALARM",
+      "android.permission.DISABLE_KEYGUARD",
+      "android.permission.TURN_SCREEN_ON"
     ]
   }
 };

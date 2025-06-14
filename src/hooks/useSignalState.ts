@@ -13,6 +13,10 @@ import {
   stopBackgroundTask, 
   scheduleAllSignalNotifications 
 } from '@/utils/backgroundTaskManager';
+import { 
+  initializeEnhancedBackgroundTasks, 
+  scheduleEnhancedSignalAlarms 
+} from '@/utils/enhancedBackgroundTaskManager';
 
 export const useSignalState = () => {
   const [signalsText, setSignalsText] = useState('');
@@ -32,6 +36,9 @@ export const useSignalState = () => {
     
     setAntidelaySeconds(loadedAntidelay);
     console.log('Loaded antidelay from storage:', loadedAntidelay);
+    
+    // Initialize enhanced background tasks
+    initializeEnhancedBackgroundTasks();
   }, []);
 
   // Save antidelay changes to storage
@@ -39,11 +46,13 @@ export const useSignalState = () => {
     saveAntidelayToStorage(antidelaySeconds);
   }, [antidelaySeconds]);
 
-  // Start background task when app loads and signals exist
+  // Start enhanced background tasks when signals exist
   useEffect(() => {
     if (savedSignals.length > 0) {
+      // Start both legacy and enhanced background tasks
       startBackgroundTask();
       scheduleAllSignalNotifications(savedSignals);
+      scheduleEnhancedSignalAlarms(savedSignals);
       
       // Register service worker for background sync
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -66,9 +75,10 @@ export const useSignalState = () => {
     setSavedSignals(signals);
     saveSignalsToStorage(signals);
     
-    // Schedule notifications for the new signals
+    // Schedule both types of notifications for the new signals
     if (signals.length > 0) {
       scheduleAllSignalNotifications(signals);
+      scheduleEnhancedSignalAlarms(signals);
     }
   };
 

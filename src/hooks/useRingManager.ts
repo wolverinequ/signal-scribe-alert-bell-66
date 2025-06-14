@@ -3,6 +3,7 @@ import { useState, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
+import { triggerImmediateWakeUp } from '@/utils/enhancedBackgroundTaskManager';
 
 export const useRingManager = (customRingtone: string | null) => {
   const [isRinging, setIsRinging] = useState(false);
@@ -13,23 +14,28 @@ export const useRingManager = (customRingtone: string | null) => {
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const audioContextsRef = useRef<AudioContext[]>([]);
 
-  // Enhanced ring notification with force wake-up
+  // Enhanced ring notification with native wake-up
   const triggerRing = async (signal: Signal) => {
     setIsRinging(true);
     setCurrentRingingSignal(signal);
     
-    // ENHANCED: Force screen wake-up with multiple methods
+    // ENHANCED: Use native wake-up first
     try {
-      // Import and use the enhanced wake-up function
+      const wakeUpSuccess = await triggerImmediateWakeUp(signal);
+      console.log('Native wake-up result:', wakeUpSuccess);
+    } catch (error) {
+      console.error('Native wake-up failed, falling back to web methods:', error);
+    }
+    
+    // Fallback to web wake-up methods
+    try {
       const { forceScreenWakeUp } = await import('@/utils/wakeLockUtils');
       await forceScreenWakeUp();
       
-      // Also request standard wake lock
       const lock = await requestWakeLock();
       setWakeLock(lock);
     } catch (error) {
-      console.error('Wake-up failed:', error);
-      // Fallback to basic wake lock
+      console.error('Web wake-up failed:', error);
       const lock = await requestWakeLock();
       setWakeLock(lock);
     }
@@ -42,7 +48,7 @@ export const useRingManager = (customRingtone: string | null) => {
       });
     }
 
-    // Play custom ringtone or default beep and track audio instances
+    // Play custom ringtone or default beep
     const audio = await playCustomRingtone(customRingtone, audioContextsRef);
     if (audio instanceof HTMLAudioElement) {
       audioInstancesRef.current.push(audio);
