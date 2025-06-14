@@ -9,17 +9,16 @@ export const useAudioManager = () => {
   const [isRingtoneLoaded, setIsRingtoneLoaded] = useState(false);
   const [showStartupDialog, setShowStartupDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const loadingRef = useRef(false);
-  const initializedRef = useRef(false);
+  const loadingRef = useRef(false); // Prevent multiple loading attempts
 
   // Load from storage when starting - ONLY ONCE
   useEffect(() => {
-    if (loadingRef.current || initializedRef.current) {
+    if (loadingRef.current) {
+      console.log('🎵 AudioManager: Already loading, skipping...');
       return;
     }
 
     loadingRef.current = true;
-    initializedRef.current = true;
     console.log('🎵 AudioManager: Loading ringtone from storage...');
     
     const storedData = localStorage.getItem(RINGTONE_STORAGE_KEY);
@@ -28,6 +27,7 @@ export const useAudioManager = () => {
     if (storedData && storedName) {
       try {
         console.log('🎵 AudioManager: Found stored ringtone data, converting to blob URL...');
+        // Convert base64 back to blob URL
         const byteCharacters = atob(storedData);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -41,6 +41,7 @@ export const useAudioManager = () => {
         setIsRingtoneLoaded(true);
         setShowStartupDialog(false);
         console.log('✅ AudioManager: Ringtone loaded from storage successfully:', storedName);
+        console.log('✅ AudioManager: State set - isRingtoneLoaded: true, customRingtone: available');
       } catch (error) {
         console.error('❌ AudioManager: Failed to load stored ringtone:', error);
         setIsRingtoneLoaded(false);
@@ -53,16 +54,10 @@ export const useAudioManager = () => {
       setCustomRingtone(null);
       setShowStartupDialog(true);
     }
-
-    loadingRef.current = false;
-  }, []);
+  }, []); // Empty dependency array - only run once
 
   // Initialize hidden file input once
   useEffect(() => {
-    if (fileInputRef.current) {
-      return;
-    }
-
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'audio/mp3,audio/mpeg';
@@ -76,6 +71,7 @@ export const useAudioManager = () => {
         document.body.removeChild(fileInputRef.current);
       }
     };
+    // eslint-disable-next-line
   }, []);
 
   const handleRingtoneSelect = async (event: Event) => {
@@ -85,20 +81,24 @@ export const useAudioManager = () => {
     if (file) {
       try {
         console.log('🎵 AudioManager: Processing new ringtone file:', file.name);
+        // Convert file to base64 for persistent storage
         const reader = new FileReader();
         reader.onload = (e) => {
           const result = e.target?.result as string;
-          const base64Data = result.split(',')[1];
+          const base64Data = result.split(',')[1]; // Remove data:audio/mpeg;base64, prefix
           
+          // Store the base64 data and filename
           localStorage.setItem(RINGTONE_STORAGE_KEY, base64Data);
           localStorage.setItem(RINGTONE_NAME_KEY, file.name);
           
+          // Create blob URL for immediate use
           const url = URL.createObjectURL(file);
           setCustomRingtone(url);
           setIsRingtoneLoaded(true);
           setShowStartupDialog(false);
           
           console.log('✅ AudioManager: MP3 ringtone loaded and stored:', file.name);
+          console.log('✅ AudioManager: isRingtoneLoaded set to true, ready for signal monitoring');
         };
         reader.readAsDataURL(file);
       } catch (error) {
@@ -119,6 +119,15 @@ export const useAudioManager = () => {
   const changeRingtone = () => {
     triggerRingtoneSelection();
   };
+
+  // Simplified debug logging - only log when state actually changes
+  useEffect(() => {
+    console.log('🎵 AudioManager State Update:', {
+      customRingtone: customRingtone ? 'Available' : 'Not available',
+      isRingtoneLoaded,
+      showStartupDialog
+    });
+  }, [customRingtone, isRingtoneLoaded, showStartupDialog]);
 
   return {
     customRingtone,

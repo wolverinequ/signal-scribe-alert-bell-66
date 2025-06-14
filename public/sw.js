@@ -21,6 +21,7 @@ async function checkSignals() {
   try {
     console.log('Checking signals in service worker');
     
+    // Get signals from IndexedDB or localStorage
     const signals = await getStoredSignals();
     const antidelaySeconds = await getStoredAntidelay();
     
@@ -30,10 +31,12 @@ async function checkSignals() {
     }
     
     const now = new Date();
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     
     for (const signal of signals) {
       if (shouldTriggerSignal(signal, antidelaySeconds, now)) {
         await showNotification(signal);
+        // Mark signal as triggered
         signal.triggered = true;
         await updateStoredSignals(signals);
       }
@@ -50,13 +53,17 @@ function shouldTriggerSignal(signal, antidelaySeconds, now) {
   const signalDate = new Date();
   signalDate.setHours(signalHours, signalMinutes, 0, 0);
   
+  // Subtract antidelay seconds
   const targetTime = new Date(signalDate.getTime() - (antidelaySeconds * 1000));
+  
+  // Check if current time matches target time (within 1 second tolerance)
   const timeDiff = Math.abs(now.getTime() - targetTime.getTime());
   return timeDiff < 1000;
 }
 
 async function getStoredSignals() {
   try {
+    // Try to get from IndexedDB first, fallback to localStorage
     return new Promise((resolve) => {
       if (typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('binary_signals');
@@ -99,7 +106,7 @@ async function updateStoredSignals(signals) {
 
 async function showNotification(signal) {
   const options = {
-    body: `${signal.asset || 'Signal'} - ${signal.direction || ''} at ${signal.timestamp}`,
+    body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
     icon: '/placeholder.svg',
     badge: '/placeholder.svg',
     vibrate: [200, 100, 200, 100, 200],
@@ -159,20 +166,15 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Safer background sync registration
+// Set up periodic background sync
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'REGISTER_BACKGROUND_SYNC') {
     console.log('Registering background sync');
-    try {
-      if (self.registration && self.registration.sync) {
-        self.registration.sync.register('sync').then(() => {
-          console.log('Background sync registered successfully');
-        }).catch((err) => {
-          console.log('Background sync registration failed:', err.message);
-        });
-      }
-    } catch (error) {
-      console.log('Background sync not supported or failed:', error.message);
-    }
+    // Register for background sync
+    self.registration.sync.register('signal-check').then(() => {
+      console.log('Background sync registered');
+    }).catch((err) => {
+      console.log('Background sync registration failed:', err);
+    });
   }
 });
