@@ -25,6 +25,13 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Request notification permission on mobile
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission().then((permission) => {
+    console.log('Notification permission:', permission);
+  });
+}
+
 // Handle visibility changes for background task management and wake-up
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {

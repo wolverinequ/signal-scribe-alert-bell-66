@@ -28,7 +28,6 @@ export const useSignalTracker = () => {
   const [antidelaySeconds, setAntidelaySeconds] = useState(15);
   const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
   const [antidelayInput, setAntidelayInput] = useState('');
-  const [showWakeUpSetup, setShowWakeUpSetup] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
@@ -36,14 +35,6 @@ export const useSignalTracker = () => {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
-
-  // Check wake-up setup status on mount
-  useEffect(() => {
-    const isSetupComplete = localStorage.getItem('wakeup_setup_complete') === 'true';
-    if (!isSetupComplete) {
-      setShowWakeUpSetup(true);
-    }
-  }, []);
 
   // Load saved data on component mount
   useEffect(() => {
@@ -242,11 +233,6 @@ export const useSignalTracker = () => {
     setAntidelayInput('');
   };
 
-  // Wake-up setup completion handler
-  const handleWakeUpSetupComplete = () => {
-    setShowWakeUpSetup(false);
-  };
-
   return {
     signalsText,
     setSignalsText,
@@ -257,14 +243,12 @@ export const useSignalTracker = () => {
     antidelayInput,
     setAntidelayInput,
     antidelaySeconds,
-    showWakeUpSetup,
     handleRingOff,
     handleSaveSignals,
     handleSetRingMouseDown,
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
-    handleAntidelayCancel,
-    handleWakeUpSetupComplete
+    handleAntidelayCancel
   };
 };
