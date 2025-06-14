@@ -10,7 +10,10 @@ export const useAudioManager = () => {
   // Load from storage when starting
   useEffect(() => {
     const stored = localStorage.getItem(RINGTONE_STORAGE_KEY);
-    if (stored) setCustomRingtone(stored);
+    if (stored) {
+      console.log('Loading custom ringtone from storage:', stored.substring(0, 50) + '...');
+      setCustomRingtone(stored);
+    }
   }, []);
 
   // Initialize hidden file input once
@@ -36,10 +39,27 @@ export const useAudioManager = () => {
     const file = target.files?.[0];
 
     if (file) {
-      const url = URL.createObjectURL(file);
-      setCustomRingtone(url);
-      localStorage.setItem(RINGTONE_STORAGE_KEY, url);
-      console.log('Custom ringtone set:', file.name);
+      console.log('Selected audio file:', file.name, 'Size:', file.size, 'Type:', file.type);
+      
+      // Use FileReader to convert file to base64 data URL
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        const base64DataUrl = e.target?.result as string;
+        if (base64DataUrl) {
+          console.log('Audio file converted to base64 data URL:', base64DataUrl.substring(0, 50) + '...');
+          setCustomRingtone(base64DataUrl);
+          localStorage.setItem(RINGTONE_STORAGE_KEY, base64DataUrl);
+          console.log('Custom ringtone saved to localStorage');
+        }
+      };
+      
+      reader.onerror = (error) => {
+        console.error('Error reading audio file:', error);
+      };
+      
+      // Read the file as data URL (base64)
+      reader.readAsDataURL(file);
     }
   };
 
@@ -51,6 +71,7 @@ export const useAudioManager = () => {
   };
 
   const useDefaultRingtone = () => {
+    console.log('Switching to default ringtone');
     setCustomRingtone(null);
     localStorage.removeItem(RINGTONE_STORAGE_KEY);
   };
