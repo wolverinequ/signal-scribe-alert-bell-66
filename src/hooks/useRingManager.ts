@@ -19,16 +19,20 @@ export const useRingManager = (
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
-  const audioContextsRef = useRef<AudioContext[]>([]);
-  const { customRingtone } = useAudioManager();
+  const { customRingtone, isRingtoneLoaded } = useAudioManager();
 
   // Helper: construct unique signal ID
   function getSignalId(signal: Signal): string {
     return `${signal.asset}-${signal.direction}-${signal.timestamp}`;
   }
 
-  // Ring notification
+  // Ring notification - only if MP3 is loaded
   const triggerRing = async (signal: Signal) => {
+    if (!isRingtoneLoaded || !customRingtone) {
+      console.log('Cannot ring - no MP3 file loaded');
+      return;
+    }
+
     setIsRinging(true);
     setCurrentRingingSignal(signal);
 
@@ -40,24 +44,32 @@ export const useRingManager = (
       window.focus();
     }
 
-    // Play custom ringtone or default beep and track audio instances
-    const audio = await playCustomRingtone(customRingtone, audioContextsRef);
-    if (audio instanceof HTMLAudioElement) {
-      audioInstancesRef.current.push(audio);
-    }
+    try {
+      // Play custom ringtone and track audio instances
+      const audio = await playCustomRingtone(customRingtone);
+      if (audio instanceof HTMLAudioElement) {
+        audioInstancesRef.current.push(audio);
+      }
 
-    // Mark signal as triggered so we can't ring again for this timestamp
-    onSignalTriggered(signal);
-    setAlreadyRangIds((prev) => {
-      const newSet = new Set(prev);
-      newSet.add(getSignalId(signal));
-      return newSet;
-    });
+      // Mark signal as triggered so we can't ring again for this timestamp
+      onSignalTriggered(signal);
+      setAlreadyRangIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(getSignalId(signal));
+        return newSet;
+      });
+    } catch (error) {
+      console.log('Failed to play ringtone:', error);
+      setIsRinging(false);
+      setCurrentRingingSignal(null);
+      releaseWakeLock(wakeLock);
+      setWakeLock(null);
+    }
   };
 
-  // Check signals every second for precise timing
+  // Check signals every second for precise timing - only if MP3 is loaded
   useEffect(() => {
-    if (savedSignals.length > 0) {
+    if (savedSignals.length > 0 && isRingtoneLoaded) {
       intervalRef.current = setInterval(() => {
         savedSignals.forEach(signal => {
           if (
@@ -76,7 +88,7 @@ export const useRingManager = (
       };
     }
     // eslint-disable-next-line
-  }, [savedSignals, customRingtone, antidelaySeconds, alreadyRangIds]);
+  }, [savedSignals, customRingtone, antidelaySeconds, alreadyRangIds, isRingtoneLoaded]);
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = () => {
@@ -91,21 +103,6 @@ export const useRingManager = (
       }
     });
     audioInstancesRef.current = [];
-
-    // Stop ALL Web Audio API contexts
-    audioContextsRef.current.forEach(context => {
-      if (context && context.state !== 'closed') {
-        context.close().catch(err => console.log('Audio context cleanup error:', err));
-      }
-    });
-    audioContextsRef.current = [];
-
-    // Additional cleanup: Stop any remaining audio elements on the page
-    const allAudioElements = document.querySelectorAll('audio');
-    allAudioElements.forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
-    });
 
     // Stop ringing if currently ringing
     if (isRinging) {
