@@ -65,74 +65,27 @@ const triggerLocalNotification = async (signal: Signal) => {
     await LocalNotifications.schedule({
       notifications: [
         {
-          title: '🔔 Binary Options Signal Alert!',
+          title: 'Binary Options Signal Alert!',
           body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
           id: Date.now(),
           schedule: { at: new Date() },
           sound: 'default',
           attachments: undefined,
-          actionTypeId: 'view',
+          actionTypeId: '',
           extra: {
             signal: JSON.stringify(signal)
-          },
-          ongoing: false,
-          autoCancel: true,
-          largeBody: `Trading Signal: ${signal.asset} - Direction: ${signal.direction} - Time: ${signal.timestamp}`,
-          summaryText: 'Binary Options Alert',
-          smallIcon: 'ic_stat_icon_config_sample',
-          largeIcon: undefined,
-          channelId: 'signal-alerts'
+          }
         }
       ]
     });
     
     console.log('Local notification scheduled for signal:', signal);
-    
-    // Trigger wake-up functionality
-    await wakeUpScreen();
-    
   } catch (error) {
     console.error('Failed to schedule local notification:', error);
   }
 };
 
-// Enhanced wake-up functionality
-const wakeUpScreen = async () => {
-  try {
-    // Try to wake up screen using multiple methods
-    
-    // Method 1: Focus window if available
-    if (typeof window !== 'undefined' && window.focus) {
-      window.focus();
-    }
-    
-    // Method 2: Dispatch wake-up event
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('wakeup-screen'));
-    }
-    
-    // Method 3: Try to acquire wake lock
-    if ('wakeLock' in navigator) {
-      try {
-        const wakeLock = await navigator.wakeLock.request('screen');
-        console.log('Wake lock acquired for notification');
-        
-        // Release after 10 seconds
-        setTimeout(() => {
-          wakeLock.release();
-          console.log('Wake lock released');
-        }, 10000);
-      } catch (wakeLockError) {
-        console.log('Wake lock failed:', wakeLockError);
-      }
-    }
-    
-  } catch (error) {
-    console.error('Failed to wake up screen:', error);
-  }
-};
-
-// Schedule notifications in advance for all signals with enhanced wake-up
+// Schedule notifications in advance for all signals
 export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
   try {
     const antidelaySeconds = loadAntidelayFromStorage();
@@ -154,23 +107,16 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
         // Only schedule if notification time is in the future
         if (notificationTime > now) {
           return {
-            title: '🔔 Binary Options Signal Alert!',
+            title: 'Binary Options Signal Alert!',
             body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
             id: index + 1,
             schedule: { at: notificationTime },
             sound: 'default',
             attachments: undefined,
-            actionTypeId: 'view',
+            actionTypeId: '',
             extra: {
               signal: JSON.stringify(signal)
-            },
-            ongoing: false,
-            autoCancel: true,
-            largeBody: `Trading Signal: ${signal.asset} - Direction: ${signal.direction} - Time: ${signal.timestamp}`,
-            summaryText: 'Binary Options Alert',
-            smallIcon: 'ic_stat_icon_config_sample',
-            largeIcon: undefined,
-            channelId: 'signal-alerts'
+            }
           };
         }
         return null;
@@ -181,7 +127,7 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
       await LocalNotifications.schedule({
         notifications: notifications as any[]
       });
-      console.log(`Scheduled ${notifications.length} notifications with wake-up capability`);
+      console.log(`Scheduled ${notifications.length} notifications`);
     }
   } catch (error) {
     console.error('Failed to schedule signal notifications:', error);

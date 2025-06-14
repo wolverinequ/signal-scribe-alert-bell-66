@@ -109,11 +109,9 @@ async function showNotification(signal) {
     body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
     icon: '/placeholder.svg',
     badge: '/placeholder.svg',
-    vibrate: [500, 200, 500, 200, 500, 200, 500],
+    vibrate: [200, 100, 200, 100, 200],
     tag: 'signal-notification-' + signal.timestamp,
     requireInteraction: true,
-    persistent: true,
-    sticky: true,
     data: {
       signal: signal,
       timestamp: Date.now()
@@ -121,81 +119,27 @@ async function showNotification(signal) {
     actions: [
       {
         action: 'view',
-        title: 'View Signal',
-        icon: '/placeholder.svg'
+        title: 'View Signal'
       },
       {
         action: 'dismiss',
         title: 'Dismiss'
       }
-    ],
-    // Enhanced wake-up properties
-    silent: false,
-    renotify: true,
-    timestamp: Date.now(),
-    // Additional properties for better wake-up behavior
-    image: '/placeholder.svg',
-    dir: 'auto',
-    lang: 'en'
+    ]
   };
 
-  // Show the notification
-  const notification = await self.registration.showNotification('🔔 Binary Options Signal Alert!', options);
-  
-  // Attempt to wake up screen through clients
-  await wakeUpAllClients();
-  
-  return notification;
+  return self.registration.showNotification('🔔 Binary Options Signal Alert!', options);
 }
 
-// Enhanced wake-up functionality for service worker
-async function wakeUpAllClients() {
-  try {
-    const clients = await self.clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true
-    });
-    
-    // Focus all available clients
-    clients.forEach(client => {
-      if (client.focus) {
-        client.focus();
-      }
-      
-      // Send wake-up message to client
-      client.postMessage({
-        type: 'WAKE_UP_SCREEN',
-        timestamp: Date.now()
-      });
-    });
-    
-    console.log(`Wake-up signal sent to ${clients.length} clients`);
-  } catch (error) {
-    console.error('Failed to wake up clients:', error);
-  }
-}
-
-// Handle notification clicks with enhanced wake-up
+// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
   if (event.action === 'view' || !event.action) {
     event.waitUntil(
-      self.clients.matchAll({
-        type: 'window',
-        includeUncontrolled: true
-      }).then((clients) => {
+      self.clients.matchAll().then((clients) => {
         if (clients.length > 0) {
-          const client = clients[0];
-          if (client.focus) {
-            client.focus();
-          }
-          // Send wake-up message
-          client.postMessage({
-            type: 'NOTIFICATION_CLICKED',
-            signal: event.notification.data.signal
-          });
-          return client;
+          return clients[0].focus();
         }
         return self.clients.openWindow('/');
       })
@@ -203,7 +147,7 @@ self.addEventListener('notificationclick', (event) => {
   }
 });
 
-// Handle push notifications for mobile with wake-up
+// Handle push notifications for mobile
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   
@@ -211,18 +155,14 @@ self.addEventListener('push', (event) => {
     body: data.body || 'Signal notification',
     icon: '/placeholder.svg',
     badge: '/placeholder.svg',
-    vibrate: [500, 200, 500, 200, 500],
+    vibrate: [200, 100, 200],
     tag: 'signal-notification',
     requireInteraction: true,
-    persistent: true,
-    data: data,
-    silent: false,
-    renotify: true
+    data: data
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || '🔔 Signal Tracker', options)
-      .then(() => wakeUpAllClients())
+    self.registration.showNotification(data.title || 'Signal Tracker', options)
   );
 });
 
