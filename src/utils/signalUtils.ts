@@ -48,5 +48,13 @@ export const checkSignalTime = (signal: Signal, antidelaySeconds: number = 0): b
                      currentMinutes === targetMinutes && 
                      currentSeconds === targetSeconds;
   
+  const currentTimeStr = `${currentHours.toString().padStart(2, '0')}:${currentMinutes.toString().padStart(2, '0')}:${currentSeconds.toString().padStart(2, '0')}`;
+  const targetTimeStr = `${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`;
+  
+  if (timeMatches) {
+    console.log(`⏰ TIME MATCH! Signal ${signal.asset} at ${signal.timestamp} should trigger now`);
+    console.log(`📅 Current: ${currentTimeStr}, Target: ${targetTimeStr}, Triggered: ${signal.triggered}`);
+  }
+  
   return timeMatches && !signal.triggered;
 };
