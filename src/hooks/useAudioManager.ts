@@ -31,17 +31,25 @@ export const useAudioManager = () => {
     // eslint-disable-next-line
   }, []);
 
-  const handleRingtoneSelect = (event: Event) => {
+  // Must be declared before useEffect above (hoisting in file scope not guaranteed).
+  function handleRingtoneSelect(event: Event) {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
 
     if (file) {
-      const url = URL.createObjectURL(file);
-      setCustomRingtone(url);
-      localStorage.setItem(RINGTONE_STORAGE_KEY, url);
-      console.log('Custom ringtone set:', file.name);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setCustomRingtone(dataUrl);
+        localStorage.setItem(RINGTONE_STORAGE_KEY, dataUrl);
+        console.log('Custom ringtone set:', file.name);
+      };
+      reader.onerror = () => {
+        console.error('Failed to read ringtone file');
+      };
+      reader.readAsDataURL(file);
     }
-  };
+  }
 
   const triggerRingtoneSelection = () => {
     if (fileInputRef.current) {
