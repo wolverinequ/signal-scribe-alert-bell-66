@@ -1,10 +1,9 @@
-import { BackgroundTask } from '@capacitor/background-task';
+
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Signal } from '@/types/signal';
 import { loadSignalsFromStorage, loadAntidelayFromStorage } from './signalStorage';
 import { checkSignalTime } from './signalUtils';
 
-let backgroundTaskId: string | undefined;
 let backgroundCheckInterval: NodeJS.Timeout | undefined;
 
 export const startBackgroundTask = async () => {
@@ -18,22 +17,13 @@ export const startBackgroundTask = async () => {
       return;
     }
 
-    // Start background task
-    backgroundTaskId = await BackgroundTask.beforeExit(async () => {
-      console.log('App moving to background, starting signal monitoring...');
-      
-      // Start checking signals every second
-      backgroundCheckInterval = setInterval(async () => {
-        await checkSignalsInBackground();
-      }, 1000);
+    console.log('Background task started - using interval monitoring');
+    
+    // Start checking signals every second
+    backgroundCheckInterval = setInterval(async () => {
+      await checkSignalsInBackground();
+    }, 1000);
 
-      // Keep the task alive for up to 30 seconds (iOS limit)
-      setTimeout(() => {
-        stopBackgroundTask();
-      }, 30000);
-    });
-
-    console.log('Background task started with ID:', backgroundTaskId);
   } catch (error) {
     console.error('Failed to start background task:', error);
   }
@@ -43,11 +33,6 @@ export const stopBackgroundTask = () => {
   if (backgroundCheckInterval) {
     clearInterval(backgroundCheckInterval);
     backgroundCheckInterval = undefined;
-  }
-  
-  if (backgroundTaskId) {
-    BackgroundTask.finish({ taskId: backgroundTaskId });
-    backgroundTaskId = undefined;
     console.log('Background task stopped');
   }
 };

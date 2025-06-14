@@ -10,8 +10,8 @@ if ('serviceWorker' in navigator) {
       .then((registration) => {
         console.log('SW registered: ', registration);
         
-        // Register for background sync
-        if ('sync' in window.ServiceWorkerRegistration.prototype) {
+        // Register for background sync if supported
+        if ('sync' in registration) {
           registration.sync.register('signal-check').then(() => {
             console.log('Background sync registered');
           }).catch((err) => {
