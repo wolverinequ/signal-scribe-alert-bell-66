@@ -24,7 +24,7 @@ export const useRingManager = (
 
   // Helper: construct unique signal ID
   const getSignalId = useCallback((signal: Signal): string => {
-    return `${signal.asset}-${signal.direction}-${signal.timestamp}`;
+    return `${signal.asset || 'NO_ASSET'}-${signal.direction || 'NO_DIRECTION'}-${signal.timestamp}`;
   }, []);
 
   // Ring notification - only if MP3 is loaded
@@ -101,6 +101,7 @@ export const useRingManager = (
 
     if (shouldStartMonitoring) {
       console.log('🚀 Starting stable signal monitoring with', savedSignals.length, 'signals');
+      console.log('📋 Signals to monitor:', savedSignals.map(s => `${s.asset || 'NO_ASSET'} at ${s.timestamp}`));
       monitoringActiveRef.current = true;
       
       intervalRef.current = setInterval(() => {
@@ -113,6 +114,13 @@ export const useRingManager = (
           const signalId = getSignalId(signal);
           const shouldTrigger = checkSignalTime(signal, antidelaySeconds);
           const notAlreadyRang = !alreadyRangIds.has(signalId);
+          
+          console.log(`🔍 Signal check: ${signal.asset || 'NO_ASSET'} at ${signal.timestamp}`, {
+            shouldTrigger,
+            notAlreadyRang,
+            signalId,
+            triggered: signal.triggered
+          });
           
           if (shouldTrigger && notAlreadyRang) {
             console.log(`🎯 Signal should trigger at ${currentTime}:`, signal);
@@ -140,7 +148,7 @@ export const useRingManager = (
         console.log('⏹️ Signal monitoring cleanup');
       }
     };
-  }, [savedSignals.length, isRingtoneLoaded, !!customRingtone]); // Only restart on these specific changes
+  }, [savedSignals, isRingtoneLoaded, customRingtone, antidelaySeconds, triggerRing, getSignalId, alreadyRangIds]);
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = useCallback(() => {
