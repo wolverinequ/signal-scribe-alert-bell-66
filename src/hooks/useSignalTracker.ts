@@ -38,15 +38,13 @@ export const useSignalTracker = () => {
     handleAntidelaySubmit,
     handleAntidelayCancel,
     ringtoneDialogOpen,
-    setRingtoneDialogOpen,
     handleSelectCustomSound,
     handleSelectDefaultSound,
   } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds);
 
   const {
-    showStartupDialog,
-    triggerRingtoneSelection,
-    changeRingtone
+    showRingtoneDialog,
+    closeRingtoneDialog
   } = useAudioManager();
 
   // Start background task when app loads and signals exist
@@ -85,12 +83,12 @@ export const useSignalTracker = () => {
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
     handleAntidelayCancel,
-    ringtoneDialogOpen,
-    setRingtoneDialogOpen,
-    handleSelectCustomSound: changeRingtone,
+    ringtoneDialogOpen: showRingtoneDialog,
+    setRingtoneDialogOpen: closeRingtoneDialog,
+    handleSelectCustomSound,
     handleSelectDefaultSound,
-    // Startup dialog props
-    showStartupDialog,
-    handleStartupFileSelect: triggerRingtoneSelection,
+    // Remove startup dialog since we now use default sound by default
+    showStartupDialog: false,
+    handleStartupFileSelect: () => {},
   };
 };

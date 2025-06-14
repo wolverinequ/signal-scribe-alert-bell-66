@@ -5,7 +5,6 @@ import SignalInput from '@/components/SignalInput';
 import ControlPanel from '@/components/ControlPanel';
 import AntidelayDialog from '@/components/AntidelayDialog';
 import RingtoneSelectDialog from "@/components/RingtoneSelectDialog";
-import StartupDialog from "@/components/StartupDialog";
 
 const Index = () => {
   const {
@@ -29,8 +28,6 @@ const Index = () => {
     setRingtoneDialogOpen,
     handleSelectCustomSound,
     handleSelectDefaultSound,
-    showStartupDialog,
-    handleStartupFileSelect,
   } = useSignalTracker();
 
   return (
@@ -61,11 +58,7 @@ const Index = () => {
         open={ringtoneDialogOpen}
         onSelectCustom={handleSelectCustomSound}
         onSelectDefault={handleSelectDefaultSound}
-        onClose={() => setRingtoneDialogOpen(false)}
-      />
-      <StartupDialog
-        open={showStartupDialog}
-        onSelectFile={handleStartupFileSelect}
+        onClose={setRingtoneDialogOpen}
       />
     </div>
   );

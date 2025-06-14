@@ -3,31 +3,55 @@ import { useState, useEffect, useRef } from 'react';
 
 const RINGTONE_STORAGE_KEY = 'selected_custom_ringtone_data';
 const RINGTONE_NAME_KEY = 'selected_custom_ringtone_name';
+const SOUND_TYPE_KEY = 'selected_sound_type'; // 'custom' or 'default'
 
 export const useAudioManager = () => {
   const [customRingtone, setCustomRingtone] = useState<string | null>(null);
+  const [soundType, setSoundType] = useState<'custom' | 'default' | null>(null);
   const [isRingtoneLoaded, setIsRingtoneLoaded] = useState(false);
-  const [showStartupDialog, setShowStartupDialog] = useState(false);
+  const [showRingtoneDialog, setShowRingtoneDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const loadingRef = useRef(false);
   const initializedRef = useRef(false);
+
+  // Create default beep sound URL
+  const createDefaultBeep = () => {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 1);
+    
+    return Promise.resolve('default-beep');
+  };
 
   // Load from storage when starting - ONLY ONCE
   useEffect(() => {
-    if (loadingRef.current || initializedRef.current) {
-      return;
-    }
-
-    loadingRef.current = true;
+    if (initializedRef.current) return;
     initializedRef.current = true;
-    console.log('🎵 AudioManager: Loading ringtone from storage...');
     
+    console.log('🎵 AudioManager: Loading sound configuration from storage...');
+    
+    const storedSoundType = localStorage.getItem(SOUND_TYPE_KEY) as 'custom' | 'default' | null;
     const storedData = localStorage.getItem(RINGTONE_STORAGE_KEY);
     const storedName = localStorage.getItem(RINGTONE_NAME_KEY);
     
-    if (storedData && storedName) {
+    if (storedSoundType === 'default') {
+      console.log('✅ AudioManager: Using stored default sound preference');
+      setSoundType('default');
+      setIsRingtoneLoaded(true);
+    } else if (storedSoundType === 'custom' && storedData && storedName) {
       try {
-        console.log('🎵 AudioManager: Found stored ringtone data, converting to blob URL...');
+        console.log('🎵 AudioManager: Found stored custom ringtone, converting to blob URL...');
         const byteCharacters = atob(storedData);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -38,30 +62,25 @@ export const useAudioManager = () => {
         const url = URL.createObjectURL(blob);
         
         setCustomRingtone(url);
+        setSoundType('custom');
         setIsRingtoneLoaded(true);
-        setShowStartupDialog(false);
-        console.log('✅ AudioManager: Ringtone loaded from storage successfully:', storedName);
+        console.log('✅ AudioManager: Custom ringtone loaded successfully:', storedName);
       } catch (error) {
-        console.error('❌ AudioManager: Failed to load stored ringtone:', error);
-        setIsRingtoneLoaded(false);
-        setCustomRingtone(null);
-        setShowStartupDialog(true);
+        console.error('❌ AudioManager: Failed to load stored custom ringtone:', error);
+        // Fall back to default
+        setSoundType('default');
+        setIsRingtoneLoaded(true);
       }
     } else {
-      console.log('🔍 AudioManager: No stored ringtone found, showing startup dialog');
-      setIsRingtoneLoaded(false);
-      setCustomRingtone(null);
-      setShowStartupDialog(true);
+      console.log('🔍 AudioManager: No sound preference found, using default beep');
+      setSoundType('default');
+      setIsRingtoneLoaded(true);
     }
-
-    loadingRef.current = false;
   }, []);
 
   // Initialize hidden file input once
   useEffect(() => {
-    if (fileInputRef.current) {
-      return;
-    }
+    if (fileInputRef.current) return;
 
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -84,7 +103,7 @@ export const useAudioManager = () => {
 
     if (file) {
       try {
-        console.log('🎵 AudioManager: Processing new ringtone file:', file.name);
+        console.log('🎵 AudioManager: Processing new custom ringtone file:', file.name);
         const reader = new FileReader();
         reader.onload = (e) => {
           const result = e.target?.result as string;
@@ -92,19 +111,18 @@ export const useAudioManager = () => {
           
           localStorage.setItem(RINGTONE_STORAGE_KEY, base64Data);
           localStorage.setItem(RINGTONE_NAME_KEY, file.name);
+          localStorage.setItem(SOUND_TYPE_KEY, 'custom');
           
           const url = URL.createObjectURL(file);
           setCustomRingtone(url);
+          setSoundType('custom');
           setIsRingtoneLoaded(true);
-          setShowStartupDialog(false);
           
-          console.log('✅ AudioManager: MP3 ringtone loaded and stored:', file.name);
+          console.log('✅ AudioManager: Custom MP3 ringtone loaded and stored:', file.name);
         };
         reader.readAsDataURL(file);
       } catch (error) {
-        console.error('❌ AudioManager: Failed to process ringtone file:', error);
-        setIsRingtoneLoaded(false);
-        setCustomRingtone(null);
+        console.error('❌ AudioManager: Failed to process custom ringtone file:', error);
       }
     }
   };
@@ -116,16 +134,34 @@ export const useAudioManager = () => {
     }
   };
 
-  const changeRingtone = () => {
-    triggerRingtoneSelection();
+  const selectDefaultSound = () => {
+    console.log('🎵 AudioManager: Selecting default sound');
+    localStorage.setItem(SOUND_TYPE_KEY, 'default');
+    localStorage.removeItem(RINGTONE_STORAGE_KEY);
+    localStorage.removeItem(RINGTONE_NAME_KEY);
+    
+    setSoundType('default');
+    setCustomRingtone(null);
+    setIsRingtoneLoaded(true);
+  };
+
+  const openRingtoneDialog = () => {
+    setShowRingtoneDialog(true);
+  };
+
+  const closeRingtoneDialog = () => {
+    setShowRingtoneDialog(false);
   };
 
   return {
     customRingtone,
+    soundType,
     isRingtoneLoaded,
-    showStartupDialog,
+    showRingtoneDialog,
     triggerRingtoneSelection,
-    changeRingtone,
-    setCustomRingtone
+    selectDefaultSound,
+    openRingtoneDialog,
+    closeRingtoneDialog,
+    createDefaultBeep
   };
 };
