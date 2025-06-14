@@ -51,6 +51,9 @@ export const useAudioManager = () => {
           setCustomRingtone(base64DataUrl);
           localStorage.setItem(RINGTONE_STORAGE_KEY, base64DataUrl);
           console.log('Custom ringtone saved to localStorage');
+          
+          // Test the custom ringtone immediately after selection
+          testCustomRingtone(base64DataUrl);
         }
       };
       
@@ -61,6 +64,33 @@ export const useAudioManager = () => {
       // Read the file as data URL (base64)
       reader.readAsDataURL(file);
     }
+  };
+
+  const testCustomRingtone = (ringtoneData: string) => {
+    console.log('Testing custom ringtone playback...');
+    const testAudio = new Audio(ringtoneData);
+    
+    testAudio.addEventListener('error', (e) => {
+      console.error('Test audio error:', e);
+    });
+    
+    testAudio.addEventListener('loadeddata', () => {
+      console.log('Test audio data loaded successfully');
+    });
+    
+    const playPromise = testAudio.play();
+    
+    playPromise.then(() => {
+      console.log('✅ Test playback successful - custom ringtone should work');
+      // Stop test audio after 2 seconds
+      setTimeout(() => {
+        testAudio.pause();
+        testAudio.currentTime = 0;
+      }, 2000);
+    }).catch(err => {
+      console.error('❌ Test playback failed:', err);
+      console.log('Custom ringtone may not work when signal triggers');
+    });
   };
 
   const triggerRingtoneSelection = () => {
