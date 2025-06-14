@@ -9,10 +9,18 @@ export const useAudioManager = () => {
   const [isRingtoneLoaded, setIsRingtoneLoaded] = useState(false);
   const [showStartupDialog, setShowStartupDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const loadingRef = useRef(false); // Prevent multiple loading attempts
 
-  // Load from storage when starting
+  // Load from storage when starting - ONLY ONCE
   useEffect(() => {
+    if (loadingRef.current) {
+      console.log('🎵 AudioManager: Already loading, skipping...');
+      return;
+    }
+
+    loadingRef.current = true;
     console.log('🎵 AudioManager: Loading ringtone from storage...');
+    
     const storedData = localStorage.getItem(RINGTONE_STORAGE_KEY);
     const storedName = localStorage.getItem(RINGTONE_NAME_KEY);
     
@@ -30,10 +38,10 @@ export const useAudioManager = () => {
         const url = URL.createObjectURL(blob);
         
         setCustomRingtone(url);
-        setIsRingtoneLoaded(true); // This was missing - crucial fix!
+        setIsRingtoneLoaded(true);
         setShowStartupDialog(false);
         console.log('✅ AudioManager: Ringtone loaded from storage successfully:', storedName);
-        console.log('✅ AudioManager: isRingtoneLoaded set to true, customRingtone URL created');
+        console.log('✅ AudioManager: State set - isRingtoneLoaded: true, customRingtone: available');
       } catch (error) {
         console.error('❌ AudioManager: Failed to load stored ringtone:', error);
         setIsRingtoneLoaded(false);
@@ -46,7 +54,7 @@ export const useAudioManager = () => {
       setCustomRingtone(null);
       setShowStartupDialog(true);
     }
-  }, []);
+  }, []); // Empty dependency array - only run once
 
   // Initialize hidden file input once
   useEffect(() => {
@@ -86,7 +94,7 @@ export const useAudioManager = () => {
           // Create blob URL for immediate use
           const url = URL.createObjectURL(file);
           setCustomRingtone(url);
-          setIsRingtoneLoaded(true); // Ensure this is set to true
+          setIsRingtoneLoaded(true);
           setShowStartupDialog(false);
           
           console.log('✅ AudioManager: MP3 ringtone loaded and stored:', file.name);
@@ -112,7 +120,7 @@ export const useAudioManager = () => {
     triggerRingtoneSelection();
   };
 
-  // Debug logging for state changes
+  // Simplified debug logging - only log when state actually changes
   useEffect(() => {
     console.log('🎵 AudioManager State Update:', {
       customRingtone: customRingtone ? 'Available' : 'Not available',

@@ -20,6 +20,7 @@ export const useRingManager = (
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const { customRingtone, isRingtoneLoaded } = useAudioManager();
+  const monitoringActiveRef = useRef(false);
 
   // Helper: construct unique signal ID
   const getSignalId = useCallback((signal: Signal): string => {
@@ -83,46 +84,24 @@ export const useRingManager = (
     }
   }, [customRingtone, isRingtoneLoaded, onSignalTriggered, getSignalId, wakeLock]);
 
-  // Stable reference for the monitoring conditions
-  const monitoringConditions = useRef({
-    signalsCount: 0,
-    ringtoneLoaded: false,
-    hasCustomRingtone: false
-  });
-
-  // Check signals every second for precise timing - only if MP3 is loaded
+  // Check signals every second for precise timing - STABLE monitoring without restarts
   useEffect(() => {
-    const newConditions = {
-      signalsCount: savedSignals.length,
-      ringtoneLoaded: isRingtoneLoaded,
-      hasCustomRingtone: !!customRingtone
-    };
-
-    // Only restart monitoring if conditions actually changed
-    const conditionsChanged = 
-      monitoringConditions.current.signalsCount !== newConditions.signalsCount ||
-      monitoringConditions.current.ringtoneLoaded !== newConditions.ringtoneLoaded ||
-      monitoringConditions.current.hasCustomRingtone !== newConditions.hasCustomRingtone;
-
-    if (!conditionsChanged && intervalRef.current) {
-      // Conditions haven't changed and monitoring is already running
-      return;
-    }
-
-    monitoringConditions.current = newConditions;
-
+    const hasSignals = savedSignals.length > 0;
+    const canMonitor = isRingtoneLoaded && customRingtone;
+    const shouldStartMonitoring = hasSignals && canMonitor && !monitoringActiveRef.current;
+    
     console.log('⏰ Signal monitoring effect triggered');
-    console.log('📊 Monitoring conditions:', newConditions);
+    console.log('📊 Monitoring check:', {
+      hasSignals,
+      isRingtoneLoaded,
+      customRingtone: customRingtone ? 'Available' : 'Not available',
+      monitoringActive: monitoringActiveRef.current,
+      shouldStart: shouldStartMonitoring
+    });
 
-    // Clear existing interval if any
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-      console.log('⏹️ Signal monitoring stopped');
-    }
-
-    if (savedSignals.length > 0 && isRingtoneLoaded && customRingtone) {
-      console.log('🚀 Starting signal monitoring with', savedSignals.length, 'signals');
+    if (shouldStartMonitoring) {
+      console.log('🚀 Starting stable signal monitoring with', savedSignals.length, 'signals');
+      monitoringActiveRef.current = true;
       
       intervalRef.current = setInterval(() => {
         const now = new Date();
@@ -143,18 +122,25 @@ export const useRingManager = (
           }
         });
       }, 1000);
-    } else {
-      console.log('❌ Signal monitoring not started - missing requirements:', newConditions);
+    } else if (!hasSignals || !canMonitor) {
+      // Stop monitoring if conditions are not met
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        monitoringActiveRef.current = false;
+        console.log('⏹️ Signal monitoring stopped - conditions not met');
+      }
     }
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
-        console.log('⏹️ Signal monitoring stopped');
+        monitoringActiveRef.current = false;
+        console.log('⏹️ Signal monitoring cleanup');
       }
     };
-  }, [savedSignals, customRingtone, antidelaySeconds, alreadyRangIds, isRingtoneLoaded, triggerRing, getSignalId]);
+  }, [savedSignals.length, isRingtoneLoaded, !!customRingtone]); // Only restart on these specific changes
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = useCallback(() => {
