@@ -27,9 +27,14 @@ export const clearSignalsInServiceWorker = () => {
 };
 
 export const requestBackgroundSync = () => {
-  if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+  if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then((registration) => {
-      return registration.sync.register('signal-check');
+      // Type guard for Background Sync API
+      if ('sync' in registration && typeof (registration as any).sync.register === 'function') {
+        return (registration as any).sync.register('signal-check');
+      } else {
+        console.log('Background sync not supported');
+      }
     }).catch((err) => {
       console.log('Background sync registration failed:', err);
     });
