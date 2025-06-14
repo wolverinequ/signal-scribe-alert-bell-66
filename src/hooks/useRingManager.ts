@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Signal } from '@/types/signal';
 import { checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
@@ -27,8 +26,11 @@ export const useRingManager = (
     return `${signal.asset}-${signal.direction}-${signal.timestamp}`;
   }
 
-  // Ring notification
-  const triggerRing = async (signal: Signal) => {
+  // Ring notification - use useCallback to ensure it gets fresh customRingtone
+  const triggerRing = useCallback(async (signal: Signal) => {
+    console.log('🔔 TRIGGER RING - Custom ringtone available:', !!customRingtone);
+    console.log('🔔 Custom ringtone data length:', customRingtone?.length || 0);
+    
     setIsRinging(true);
     setCurrentRingingSignal(signal);
 
@@ -41,6 +43,7 @@ export const useRingManager = (
     }
 
     // Play custom ringtone or default beep and track audio instances
+    console.log('🔔 About to call playCustomRingtone with:', customRingtone ? 'CUSTOM_RINGTONE' : 'NULL');
     const audio = await playCustomRingtone(customRingtone, audioContextsRef);
     if (audio instanceof HTMLAudioElement) {
       audioInstancesRef.current.push(audio);
@@ -53,17 +56,19 @@ export const useRingManager = (
       newSet.add(getSignalId(signal));
       return newSet;
     });
-  };
+  }, [customRingtone, onSignalTriggered]); // Add customRingtone as dependency
 
   // Check signals every second for precise timing
   useEffect(() => {
     if (savedSignals.length > 0) {
+      console.log('🔔 Setting up signal checking interval...');
       intervalRef.current = setInterval(() => {
         savedSignals.forEach(signal => {
           if (
             checkSignalTime(signal, antidelaySeconds) && 
             !alreadyRangIds.has(getSignalId(signal))
           ) {
+            console.log('🔔 Signal time reached, triggering ring for:', signal);
             triggerRing(signal);
           }
         });
@@ -75,8 +80,7 @@ export const useRingManager = (
         }
       };
     }
-    // eslint-disable-next-line
-  }, [savedSignals, customRingtone, antidelaySeconds, alreadyRangIds]);
+  }, [savedSignals, antidelaySeconds, alreadyRangIds, triggerRing]); // Add triggerRing as dependency
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = () => {
