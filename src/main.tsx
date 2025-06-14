@@ -25,6 +25,32 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Listen for messages from service worker for wake-up
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'WAKE_UP_SCREEN') {
+      console.log('Wake-up signal received from service worker');
+      
+      // Try to wake up screen
+      if (document.hidden) {
+        window.focus();
+      }
+      
+      // Trigger wake lock if available
+      if ('wakeLock' in navigator) {
+        navigator.wakeLock.request('screen').then((wakeLock) => {
+          console.log('Wake lock acquired from service worker message');
+          setTimeout(() => {
+            wakeLock.release();
+          }, 10000);
+        }).catch((err) => {
+          console.log('Wake lock from service worker failed:', err);
+        });
+      }
+    }
+  });
+}
+
 // Request notification permission on mobile
 if ('Notification' in window && Notification.permission === 'default') {
   Notification.requestPermission().then((permission) => {
@@ -41,6 +67,21 @@ document.addEventListener('visibilitychange', () => {
     console.log('App returned to foreground');
     // Reload signals from storage to sync any changes made in background
     window.dispatchEvent(new CustomEvent('app-foreground'));
+  }
+});
+
+// Listen for custom wake-up events
+window.addEventListener('wakeup-screen', () => {
+  console.log('Custom wake-up event received');
+  if ('wakeLock' in navigator) {
+    navigator.wakeLock.request('screen').then((wakeLock) => {
+      console.log('Wake lock acquired from custom event');
+      setTimeout(() => {
+        wakeLock.release();
+      }, 5000);
+    }).catch((err) => {
+      console.log('Wake lock from custom event failed:', err);
+    });
   }
 });
 

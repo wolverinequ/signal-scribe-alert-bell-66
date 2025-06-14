@@ -29,8 +29,28 @@ const config: CapacitorConfig = {
       smallIcon: "ic_stat_icon_config_sample",
       iconColor: "#488AFF",
       sound: "beep.wav",
+      requestPermissions: true,
+      scheduleOn: "trigger",
+      actions: [
+        {
+          id: "view",
+          title: "View Signal",
+          requiresAuthentication: false,
+          foreground: true,
+          destructive: false
+        }
+      ]
     }
   },
+  android: {
+    allowMixedContent: true,
+    captureInput: true,
+    webContentsDebuggingEnabled: true
+  },
+  ios: {
+    contentInset: "automatic",
+    scrollEnabled: true
+  }
 };
 
 export default config;
