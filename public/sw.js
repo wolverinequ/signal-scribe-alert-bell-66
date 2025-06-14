@@ -166,25 +166,15 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Set up periodic background sync - with error handling
+// Set up periodic background sync
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'REGISTER_BACKGROUND_SYNC') {
     console.log('Registering background sync');
-    
-    // Check if sync is supported and registration exists
-    if ('sync' in self.registration && self.registration.sync) {
-      try {
-        self.registration.sync.register('signal-check').then(() => {
-          console.log('Background sync registered successfully');
-        }).catch((err) => {
-          console.log('Background sync registration failed:', err.message);
-          // Don't spam console with full error details
-        });
-      } catch (error) {
-        console.log('Background sync not supported:', error.message);
-      }
-    } else {
-      console.log('Background sync not supported in this browser');
-    }
+    // Register for background sync
+    self.registration.sync.register('signal-check').then(() => {
+      console.log('Background sync registered');
+    }).catch((err) => {
+      console.log('Background sync registration failed:', err);
+    });
   }
 });
