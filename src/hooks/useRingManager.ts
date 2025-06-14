@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { checkSignalTime } from '@/utils/signalUtils';
@@ -15,14 +14,30 @@ export const useRingManager = (
   const [currentRingingSignal, setCurrentRingingSignal] = useState<Signal | null>(null);
   const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
+  const [triggeredSignals, setTriggeredSignals] = useState<Set<string>>(new Set());
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const audioContextsRef = useRef<AudioContext[]>([]);
-  const { customRingtone } = useAudioManager();
+  const { getCurrentRingtone } = useAudioManager();
+
+  // Create unique signal identifier
+  const getSignalId = (signal: Signal): string => {
+    return `${signal.asset}-${signal.direction}-${signal.timestamp}`;
+  };
 
   // Ring notification
   const triggerRing = async (signal: Signal) => {
+    const signalId = getSignalId(signal);
+    
+    // Check if this signal has already been triggered
+    if (triggeredSignals.has(signalId)) {
+      return;
+    }
+
+    // Mark signal as triggered to prevent duplicate playback
+    setTriggeredSignals(prev => new Set(prev).add(signalId));
+    
     setIsRinging(true);
     setCurrentRingingSignal(signal);
     
@@ -35,15 +50,21 @@ export const useRingManager = (
       window.focus();
     }
 
-    // Play custom ringtone or default beep and track audio instances
-    const audio = await playCustomRingtone(customRingtone, audioContextsRef);
+    // Get the current ringtone preference and play accordingly
+    const ringtone = getCurrentRingtone();
+    const audio = await playCustomRingtone(ringtone, audioContextsRef);
     if (audio instanceof HTMLAudioElement) {
       audioInstancesRef.current.push(audio);
     }
 
-    // Mark signal as triggered
+    // Mark signal as triggered in parent component
     onSignalTriggered(signal);
   };
+
+  // Reset triggered signals when signals list changes (new signals saved)
+  useEffect(() => {
+    setTriggeredSignals(new Set());
+  }, [savedSignals]);
 
   // Check signals every second for precise timing
   useEffect(() => {
@@ -62,7 +83,7 @@ export const useRingManager = (
         }
       };
     }
-  }, [savedSignals, customRingtone, antidelaySeconds]);
+  }, [savedSignals, antidelaySeconds]);
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = () => {
