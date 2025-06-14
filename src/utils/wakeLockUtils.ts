@@ -35,26 +35,28 @@ export const wakeUpScreen = async (): Promise<void> => {
         document.dispatchEvent(new Event('visibilitychange'));
       }
       
-      // Try to bring window to front on mobile
-      if ('screen' in window && 'orientation' in window.screen) {
-        try {
-          await (window.screen as any).wakeUpDisplay?.();
-        } catch (e) {
-          console.log('Native wake up display not available');
+      // Method 3: Try to bring window to front on mobile with proper typing
+      try {
+        const navigatorWithScreen = navigator as any;
+        if ('screen' in navigatorWithScreen && 'orientation' in navigatorWithScreen.screen) {
+          await navigatorWithScreen.screen.wakeUpDisplay?.();
         }
+      } catch (e) {
+        console.log('Native wake up display not available');
       }
     }
     
-    // Method 3: Aggressive vibration pattern to help wake device
+    // Method 4: Aggressive vibration pattern to help wake device
     if ('vibrate' in navigator) {
       // Long vibration pattern designed to wake device
       navigator.vibrate([1000, 500, 1000, 500, 1000, 500, 1000]);
     }
     
-    // Method 4: Use Notification API as additional wake-up trigger
+    // Method 5: Use Notification API as additional wake-up trigger
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        const wakeNotification = new Notification('🚨 SIGNAL ALERT - WAKE UP! 🚨', {
+        // Create notification with proper typing for vibrate property
+        const notificationOptions: NotificationOptions & { vibrate?: number[]; renotify?: boolean; tag?: string } = {
           body: 'Binary Options Signal is ready!',
           icon: '/placeholder.svg',
           badge: '/placeholder.svg',
@@ -63,7 +65,9 @@ export const wakeUpScreen = async (): Promise<void> => {
           silent: false,
           renotify: true,
           tag: 'wake-up-alert'
-        });
+        };
+        
+        const wakeNotification = new Notification('🚨 SIGNAL ALERT - WAKE UP! 🚨', notificationOptions);
         
         // Auto-close after 5 seconds
         setTimeout(() => wakeNotification.close(), 5000);
@@ -72,7 +76,7 @@ export const wakeUpScreen = async (): Promise<void> => {
       }
     }
     
-    // Method 5: Try to play silent audio to trigger system wake-up
+    // Method 6: Try to play silent audio to trigger system wake-up
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
@@ -106,15 +110,20 @@ export const forceScreenWakeUp = async (): Promise<void> => {
     // Use multiple approaches simultaneously for maximum effectiveness
     await Promise.all([
       wakeUpScreen(),
-      // Try to use screen wake API if available
+      // Try to use screen wake API if available with proper typing
       new Promise<void>((resolve) => {
-        if ('screen' in navigator && 'keepAwake' in (navigator.screen as any)) {
-          (navigator.screen as any).keepAwake = true;
-          setTimeout(() => {
-            (navigator.screen as any).keepAwake = false;
+        try {
+          const navigatorWithScreen = navigator as any;
+          if ('screen' in navigatorWithScreen && 'keepAwake' in navigatorWithScreen.screen) {
+            navigatorWithScreen.screen.keepAwake = true;
+            setTimeout(() => {
+              navigatorWithScreen.screen.keepAwake = false;
+              resolve();
+            }, 5000);
+          } else {
             resolve();
-          }, 5000);
-        } else {
+          }
+        } catch (e) {
           resolve();
         }
       }),
