@@ -58,7 +58,7 @@ const Index = () => {
         open={ringtoneDialogOpen}
         onSelectCustom={handleSelectCustomSound}
         onSelectDefault={handleSelectDefaultSound}
-        onClose={() => setRingtoneDialogOpen(false)}
+        onClose={setRingtoneDialogOpen}
       />
     </div>
   );
