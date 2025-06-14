@@ -16,7 +16,7 @@ export const useAntidelayManager = (
 
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
-  const { triggerRingtoneSelection, useDefaultRingtone } = useAudioManager();
+  const { triggerRingtoneSelection } = useAudioManager();
 
   // Set Ring button handlers
   const handleSetRingMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
@@ -43,9 +43,9 @@ export const useAntidelayManager = (
       longPressTimerRef.current = null;
     }
 
-    // If it wasn't a long press and dialog isn't showing, trigger ringtone dialog
+    // If it wasn't a long press and dialog isn't showing, trigger ringtone selection
     if (!isLongPressRef.current && !showAntidelayDialog) {
-      setRingtoneDialogOpen(true);
+      triggerRingtoneSelection();
     }
   };
 
@@ -60,9 +60,6 @@ export const useAntidelayManager = (
   // Ringtone select dialog handlers
   const handleSelectCustomSound = () => {
     triggerRingtoneSelection();
-  };
-  const handleSelectDefaultSound = () => {
-    useDefaultRingtone();
   };
 
   // Antidelay dialog handlers
@@ -98,6 +95,6 @@ export const useAntidelayManager = (
     ringtoneDialogOpen,
     setRingtoneDialogOpen,
     handleSelectCustomSound,
-    handleSelectDefaultSound,
+    handleSelectDefaultSound: () => {}, // Empty function since we don't support default sounds
   };
 };
