@@ -10,7 +10,12 @@ export const useAudioManager = () => {
   // Load from storage when starting
   useEffect(() => {
     const stored = localStorage.getItem(RINGTONE_STORAGE_KEY);
-    if (stored) setCustomRingtone(stored);
+    // Only set if it's a data URL, not a blob: URL or empty string
+    if (stored && stored.startsWith('data:audio')) {
+      setCustomRingtone(stored);
+    } else {
+      setCustomRingtone(null); // fallback if not a usable data url
+    }
   }, []);
 
   // Initialize hidden file input once
@@ -31,15 +36,37 @@ export const useAudioManager = () => {
     // eslint-disable-next-line
   }, []);
 
-  const handleRingtoneSelect = (event: Event) => {
+  // Helper to convert a File object to base64 data URL
+  const fileToDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        if (e.target && typeof e.target.result === 'string') {
+          resolve(e.target.result);
+        } else {
+          reject(new Error('Failed to read file'));
+        }
+      };
+      reader.onerror = function (err) {
+        reject(err);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRingtoneSelect = async (event: Event) => {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
 
     if (file) {
-      const url = URL.createObjectURL(file);
-      setCustomRingtone(url);
-      localStorage.setItem(RINGTONE_STORAGE_KEY, url);
-      console.log('Custom ringtone set:', file.name);
+      try {
+        const dataUrl = await fileToDataURL(file);
+        setCustomRingtone(dataUrl);
+        localStorage.setItem(RINGTONE_STORAGE_KEY, dataUrl);
+        console.log('Custom ringtone set (base64):', file.name);
+      } catch (err) {
+        console.error('Failed to read custom ringtone:', err);
+      }
     }
   };
 
@@ -62,3 +89,4 @@ export const useAudioManager = () => {
     setCustomRingtone // expose in case needed elsewhere
   };
 };
+
