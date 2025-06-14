@@ -3,7 +3,6 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { Signal } from '@/types/signal';
 import { loadSignalsFromStorage, loadAntidelayFromStorage } from './signalStorage';
 import { checkSignalTime } from './signalUtils';
-import { wakeUpScreen } from './wakeLockUtils';
 
 let backgroundCheckInterval: NodeJS.Timeout | undefined;
 
@@ -45,7 +44,7 @@ const checkSignalsInBackground = async () => {
     
     for (const signal of signals) {
       if (checkSignalTime(signal, antidelaySeconds)) {
-        await triggerWakeUpNotification(signal);
+        await triggerLocalNotification(signal);
         
         // Mark signal as triggered and save back to storage
         signal.triggered = true;
@@ -61,16 +60,12 @@ const checkSignalsInBackground = async () => {
   }
 };
 
-const triggerWakeUpNotification = async (signal: Signal) => {
+const triggerLocalNotification = async (signal: Signal) => {
   try {
-    // Attempt to wake up screen first
-    await wakeUpScreen();
-    
-    // Schedule high-priority wake-up notification
     await LocalNotifications.schedule({
       notifications: [
         {
-          title: '🚨 BINARY OPTIONS SIGNAL ALERT! 🚨',
+          title: 'Binary Options Signal Alert!',
           body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
           id: Date.now(),
           schedule: { at: new Date() },
@@ -78,54 +73,19 @@ const triggerWakeUpNotification = async (signal: Signal) => {
           attachments: undefined,
           actionTypeId: '',
           extra: {
-            signal: JSON.stringify(signal),
-            wakeup: true,
-            priority: 'max',
-            category: 'alarm',
-            importance: 'max',
-            ongoing: true,
-            fullScreenIntent: true,
-            showWhen: true,
-            autoCancel: false,
-            vibrate: true,
-            lights: true,
-            lightColor: '#FF0000'
+            signal: JSON.stringify(signal)
           }
         }
       ]
     });
     
-    // Add multiple notification attempts for better wake-up reliability
-    setTimeout(async () => {
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            title: '⚠️ URGENT: Signal Alert Repeat ⚠️',
-            body: `REMINDER: ${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
-            id: Date.now() + 1,
-            schedule: { at: new Date() },
-            sound: 'default',
-            attachments: undefined,
-            actionTypeId: '',
-            extra: {
-              signal: JSON.stringify(signal),
-              wakeup: true,
-              priority: 'max',
-              category: 'alarm',
-              repeat: true
-            }
-          }
-        ]
-      });
-    }, 2000);
-    
-    console.log('Wake-up notification with enhanced properties scheduled for signal:', signal);
+    console.log('Local notification scheduled for signal:', signal);
   } catch (error) {
-    console.error('Failed to schedule wake-up notification:', error);
+    console.error('Failed to schedule local notification:', error);
   }
 };
 
-// Schedule notifications in advance for all signals with enhanced wake-up properties
+// Schedule notifications in advance for all signals
 export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
   try {
     const antidelaySeconds = loadAntidelayFromStorage();
@@ -147,28 +107,15 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
         // Only schedule if notification time is in the future
         if (notificationTime > now) {
           return {
-            title: '🚨 BINARY OPTIONS SIGNAL ALERT! 🚨',
-            body: `GET READY: ${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
+            title: 'Binary Options Signal Alert!',
+            body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
             id: index + 1,
             schedule: { at: notificationTime },
             sound: 'default',
             attachments: undefined,
-            actionTypeId: 'view-signal',
+            actionTypeId: '',
             extra: {
-              signal: JSON.stringify(signal),
-              wakeup: true,
-              priority: 'max',
-              category: 'alarm',
-              importance: 'max',
-              ongoing: true,
-              fullScreenIntent: true,
-              showWhen: true,
-              autoCancel: false,
-              vibrate: true,
-              lights: true,
-              lightColor: '#FF0000',
-              largeIcon: 'ic_large_icon',
-              bigText: `URGENT: ${signal.asset} ${signal.direction} signal at ${signal.timestamp}. Prepare your trade!`
+              signal: JSON.stringify(signal)
             }
           };
         }
@@ -180,7 +127,7 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
       await LocalNotifications.schedule({
         notifications: notifications as any[]
       });
-      console.log(`Scheduled ${notifications.length} enhanced wake-up notifications`);
+      console.log(`Scheduled ${notifications.length} notifications`);
     }
   } catch (error) {
     console.error('Failed to schedule signal notifications:', error);
