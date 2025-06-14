@@ -15,22 +15,27 @@ export const useRingManager = (
   const [currentRingingSignal, setCurrentRingingSignal] = useState<Signal | null>(null);
   const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
-  
+  const [alreadyRangIds, setAlreadyRangIds] = useState<Set<string>>(new Set());
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const audioContextsRef = useRef<AudioContext[]>([]);
   const { customRingtone } = useAudioManager();
 
+  // Helper: construct unique signal ID
+  function getSignalId(signal: Signal): string {
+    return `${signal.asset}-${signal.direction}-${signal.timestamp}`;
+  }
+
   // Ring notification
   const triggerRing = async (signal: Signal) => {
     setIsRinging(true);
     setCurrentRingingSignal(signal);
-    
+
     // Wake up screen if supported
     const lock = await requestWakeLock();
     setWakeLock(lock);
 
-    // Wake up screen on mobile by trying to focus the window
     if (document.hidden) {
       window.focus();
     }
@@ -41,8 +46,13 @@ export const useRingManager = (
       audioInstancesRef.current.push(audio);
     }
 
-    // Mark signal as triggered
+    // Mark signal as triggered so we can't ring again for this timestamp
     onSignalTriggered(signal);
+    setAlreadyRangIds((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(getSignalId(signal));
+      return newSet;
+    });
   };
 
   // Check signals every second for precise timing
@@ -50,7 +60,10 @@ export const useRingManager = (
     if (savedSignals.length > 0) {
       intervalRef.current = setInterval(() => {
         savedSignals.forEach(signal => {
-          if (checkSignalTime(signal, antidelaySeconds)) {
+          if (
+            checkSignalTime(signal, antidelaySeconds) && 
+            !alreadyRangIds.has(getSignalId(signal))
+          ) {
             triggerRing(signal);
           }
         });
@@ -62,13 +75,14 @@ export const useRingManager = (
         }
       };
     }
-  }, [savedSignals, customRingtone, antidelaySeconds]);
+    // eslint-disable-next-line
+  }, [savedSignals, customRingtone, antidelaySeconds, alreadyRangIds]);
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = () => {
     setRingOffButtonPressed(true);
     setTimeout(() => setRingOffButtonPressed(false), 200);
-    
+
     // Stop ALL audio instances immediately
     audioInstancesRef.current.forEach(audio => {
       if (audio) {
@@ -77,7 +91,7 @@ export const useRingManager = (
       }
     });
     audioInstancesRef.current = [];
-    
+
     // Stop ALL Web Audio API contexts
     audioContextsRef.current.forEach(context => {
       if (context && context.state !== 'closed') {
@@ -85,14 +99,14 @@ export const useRingManager = (
       }
     });
     audioContextsRef.current = [];
-    
+
     // Additional cleanup: Stop any remaining audio elements on the page
     const allAudioElements = document.querySelectorAll('audio');
     allAudioElements.forEach(audio => {
       audio.pause();
       audio.currentTime = 0;
     });
-    
+
     // Stop ringing if currently ringing
     if (isRinging) {
       setIsRinging(false);
