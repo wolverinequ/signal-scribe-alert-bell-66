@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
 import { useAudioManager } from './useAudioManager';
+import { updateSignalsInServiceWorker, clearSignalsInServiceWorker, requestBackgroundSync } from '@/utils/backgroundSync';
 
 export const useSignalTracker = () => {
   const [signalsText, setSignalsText] = useState('');
@@ -15,7 +15,7 @@ export const useSignalTracker = () => {
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
-  const [antidelaySeconds, setAntidelaySeconds] = useState(15); // Changed default to 15
+  const [antidelaySeconds, setAntidelaySeconds] = useState(15);
   const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
   const [antidelayInput, setAntidelayInput] = useState('');
   
@@ -26,6 +26,29 @@ export const useSignalTracker = () => {
   const isLongPressRef = useRef(false);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
+  // Clear everything when app is closed/refreshed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      clearSignalsInServiceWorker();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // App is backgrounded, ensure service worker has latest data
+        updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
+        requestBackgroundSync();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [savedSignals, antidelaySeconds]);
+
   // Ring notification
   const triggerRing = async (signal: Signal) => {
     setIsRinging(true);
@@ -34,11 +57,6 @@ export const useSignalTracker = () => {
     // Wake up screen if supported
     const lock = await requestWakeLock();
     setWakeLock(lock);
-
-    // Wake up screen on mobile by trying to focus the window
-    if (document.hidden) {
-      window.focus();
-    }
 
     // Play custom ringtone or default beep and track audio instances
     const audio = await playCustomRingtone(customRingtone, audioContextsRef);
@@ -54,9 +72,9 @@ export const useSignalTracker = () => {
     );
   };
 
-  // Check signals every second for precise timing
+  // Check signals every second for precise timing when app is active
   useEffect(() => {
-    if (savedSignals.length > 0) {
+    if (savedSignals.length > 0 && document.visibilityState === 'visible') {
       intervalRef.current = setInterval(() => {
         savedSignals.forEach(signal => {
           if (checkSignalTime(signal, antidelaySeconds)) {
@@ -118,6 +136,10 @@ export const useSignalTracker = () => {
     
     const signals = parseSignals(signalsText);
     setSavedSignals(signals);
+    
+    // Update service worker with new signals
+    updateSignalsInServiceWorker(signals, antidelaySeconds);
+    requestBackgroundSync();
   };
 
   // Set Ring button handlers

@@ -1,4 +1,3 @@
-
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
@@ -16,11 +15,16 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Request notification permission on mobile
-if ('Notification' in window && Notification.permission === 'default') {
-  Notification.requestPermission().then((permission) => {
-    console.log('Notification permission:', permission);
-  });
+// Request notification permission immediately for background alerts
+if ('Notification' in window) {
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().then((permission) => {
+      console.log('Notification permission:', permission);
+      if (permission === 'granted') {
+        console.log('Notifications enabled for background alerts');
+      }
+    });
+  }
 }
 
 // Prevent zoom on mobile
