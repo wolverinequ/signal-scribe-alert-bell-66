@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { 
   startBackgroundTask, 
@@ -38,12 +39,14 @@ export const useSignalTracker = () => {
     handleAntidelayCancel,
     ringtoneDialogOpen,
     setRingtoneDialogOpen,
+    handleSelectCustomSound,
+    handleSelectDefaultSound,
   } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds);
 
   const {
     showStartupDialog,
-    selectCustomSound,
-    selectDefaultSound
+    triggerRingtoneSelection,
+    changeRingtone
   } = useAudioManager();
 
   // Start background task when app loads and signals exist
@@ -84,10 +87,10 @@ export const useSignalTracker = () => {
     handleAntidelayCancel,
     ringtoneDialogOpen,
     setRingtoneDialogOpen,
-    handleSelectCustomSound: selectCustomSound,
-    handleSelectDefaultSound: selectDefaultSound,
-    // Startup dialog props (kept for compatibility)
+    handleSelectCustomSound: changeRingtone,
+    handleSelectDefaultSound,
+    // Startup dialog props
     showStartupDialog,
-    handleStartupFileSelect: selectCustomSound,
+    handleStartupFileSelect: triggerRingtoneSelection,
   };
 };
