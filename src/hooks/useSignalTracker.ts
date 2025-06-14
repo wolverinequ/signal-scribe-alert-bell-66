@@ -1,17 +1,10 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
 import { useAudioManager } from './useAudioManager';
-import { 
-  updateSignalsInServiceWorker, 
-  clearSignalsInServiceWorker, 
-  keepServiceWorkerActive,
-  forceSignalCheck,
-  ensureNotificationPermission,
-  ensureServiceWorkerRegistration
-} from '@/utils/backgroundSync';
 
 export const useSignalTracker = () => {
   const [signalsText, setSignalsText] = useState('');
@@ -22,7 +15,7 @@ export const useSignalTracker = () => {
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
-  const [antidelaySeconds, setAntidelaySeconds] = useState(15);
+  const [antidelaySeconds, setAntidelaySeconds] = useState(15); // Changed default to 15
   const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
   const [antidelayInput, setAntidelayInput] = useState('');
   
@@ -33,58 +26,6 @@ export const useSignalTracker = () => {
   const isLongPressRef = useRef(false);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
-  // Enhanced initialization
-  useEffect(() => {
-    const initializeApp = async () => {
-      // Ensure service worker is registered
-      await ensureServiceWorkerRegistration();
-      
-      // Ensure notification permission
-      await ensureNotificationPermission();
-      
-      // Start keep-alive mechanism
-      keepServiceWorkerActive();
-      
-      console.log('App initialized with enhanced background support');
-    };
-    
-    initializeApp();
-  }, []);
-
-  // Enhanced app lifecycle handling
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        console.log('App backgrounded - ensuring service worker has latest data');
-        updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
-        forceSignalCheck();
-      } else if (document.visibilityState === 'visible') {
-        console.log('App foregrounded - syncing with service worker');
-        updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
-        forceSignalCheck();
-      }
-    };
-
-    const handleBeforeUnload = () => {
-      // Ensure service worker continues running
-      updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
-    };
-
-    const handlePageHide = () => {
-      updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('pagehide', handlePageHide);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('pagehide', handlePageHide);
-    };
-  }, [savedSignals, antidelaySeconds]);
-
   // Ring notification
   const triggerRing = async (signal: Signal) => {
     setIsRinging(true);
@@ -94,7 +35,12 @@ export const useSignalTracker = () => {
     const lock = await requestWakeLock();
     setWakeLock(lock);
 
-    // Play custom ringtone or default beep
+    // Wake up screen on mobile by trying to focus the window
+    if (document.hidden) {
+      window.focus();
+    }
+
+    // Play custom ringtone or default beep and track audio instances
     const audio = await playCustomRingtone(customRingtone, audioContextsRef);
     if (audio instanceof HTMLAudioElement) {
       audioInstancesRef.current.push(audio);
@@ -108,9 +54,9 @@ export const useSignalTracker = () => {
     );
   };
 
-  // Enhanced foreground checking (when app is visible)
+  // Check signals every second for precise timing
   useEffect(() => {
-    if (savedSignals.length > 0 && document.visibilityState === 'visible') {
+    if (savedSignals.length > 0) {
       intervalRef.current = setInterval(() => {
         savedSignals.forEach(signal => {
           if (checkSignalTime(signal, antidelaySeconds)) {
@@ -141,6 +87,7 @@ export const useSignalTracker = () => {
     });
     audioInstancesRef.current = [];
     
+    // Stop ALL Web Audio API contexts
     audioContextsRef.current.forEach(context => {
       if (context && context.state !== 'closed') {
         context.close().catch(err => console.log('Audio context cleanup error:', err));
@@ -148,12 +95,14 @@ export const useSignalTracker = () => {
     });
     audioContextsRef.current = [];
     
+    // Additional cleanup: Stop any remaining audio elements on the page
     const allAudioElements = document.querySelectorAll('audio');
     allAudioElements.forEach(audio => {
       audio.pause();
       audio.currentTime = 0;
     });
     
+    // Stop ringing if currently ringing
     if (isRinging) {
       setIsRinging(false);
       setCurrentRingingSignal(null);
@@ -169,12 +118,6 @@ export const useSignalTracker = () => {
     
     const signals = parseSignals(signalsText);
     setSavedSignals(signals);
-    
-    // Immediately send to service worker with enhanced reliability
-    updateSignalsInServiceWorker(signals, antidelaySeconds);
-    forceSignalCheck();
-    
-    console.log('Signals saved and sent to enhanced service worker:', signals.length);
   };
 
   // Set Ring button handlers
@@ -186,6 +129,7 @@ export const useSignalTracker = () => {
     
     longPressTimerRef.current = setTimeout(() => {
       isLongPressRef.current = true;
+      // Long press detected - show antidelay dialog
       setShowAntidelayDialog(true);
       setAntidelayInput(antidelaySeconds.toString());
     }, 3000);
@@ -201,6 +145,7 @@ export const useSignalTracker = () => {
       longPressTimerRef.current = null;
     }
     
+    // If it wasn't a long press and dialog is not showing, trigger ringtone selection
     if (!isLongPressRef.current && !showAntidelayDialog) {
       triggerRingtoneSelection();
     }
@@ -221,10 +166,6 @@ export const useSignalTracker = () => {
       setAntidelaySeconds(seconds);
       setShowAntidelayDialog(false);
       setAntidelayInput('');
-      
-      // Update service worker with new antidelay value
-      updateSignalsInServiceWorker(savedSignals, seconds);
-      forceSignalCheck();
     }
   };
 
