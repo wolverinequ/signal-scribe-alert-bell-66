@@ -4,6 +4,17 @@ import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
+import { 
+  saveSignalsToStorage, 
+  loadSignalsFromStorage, 
+  saveAntidelayToStorage, 
+  loadAntidelayFromStorage 
+} from '@/utils/signalStorage';
+import { 
+  startBackgroundTask, 
+  stopBackgroundTask, 
+  scheduleAllSignalNotifications 
+} from '@/utils/backgroundTaskManager';
 import { useAudioManager } from './useAudioManager';
 
 export const useSignalTracker = () => {
@@ -15,7 +26,7 @@ export const useSignalTracker = () => {
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
-  const [antidelaySeconds, setAntidelaySeconds] = useState(15); // Changed default to 15
+  const [antidelaySeconds, setAntidelaySeconds] = useState(15);
   const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
   const [antidelayInput, setAntidelayInput] = useState('');
   
@@ -25,6 +36,44 @@ export const useSignalTracker = () => {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
+
+  // Load saved data on component mount
+  useEffect(() => {
+    const loadedSignals = loadSignalsFromStorage();
+    const loadedAntidelay = loadAntidelayFromStorage();
+    
+    if (loadedSignals.length > 0) {
+      setSavedSignals(loadedSignals);
+      console.log('Loaded signals from storage:', loadedSignals);
+    }
+    
+    setAntidelaySeconds(loadedAntidelay);
+    console.log('Loaded antidelay from storage:', loadedAntidelay);
+  }, []);
+
+  // Save antidelay changes to storage
+  useEffect(() => {
+    saveAntidelayToStorage(antidelaySeconds);
+  }, [antidelaySeconds]);
+
+  // Start background task when app loads and signals exist
+  useEffect(() => {
+    if (savedSignals.length > 0) {
+      startBackgroundTask();
+      scheduleAllSignalNotifications(savedSignals);
+      
+      // Register service worker for background sync
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'REGISTER_BACKGROUND_SYNC'
+        });
+      }
+    }
+
+    return () => {
+      stopBackgroundTask();
+    };
+  }, [savedSignals]);
 
   // Ring notification
   const triggerRing = async (signal: Signal) => {
@@ -46,12 +95,12 @@ export const useSignalTracker = () => {
       audioInstancesRef.current.push(audio);
     }
 
-    // Mark signal as triggered
-    setSavedSignals(prev => 
-      prev.map(s => 
-        s === signal ? { ...s, triggered: true } : s
-      )
+    // Mark signal as triggered and save to storage
+    const updatedSignals = savedSignals.map(s => 
+      s === signal ? { ...s, triggered: true } : s
     );
+    setSavedSignals(updatedSignals);
+    saveSignalsToStorage(updatedSignals);
   };
 
   // Check signals every second for precise timing
@@ -118,6 +167,12 @@ export const useSignalTracker = () => {
     
     const signals = parseSignals(signalsText);
     setSavedSignals(signals);
+    saveSignalsToStorage(signals);
+    
+    // Schedule notifications for the new signals
+    if (signals.length > 0) {
+      scheduleAllSignalNotifications(signals);
+    }
   };
 
   // Set Ring button handlers
@@ -166,6 +221,11 @@ export const useSignalTracker = () => {
       setAntidelaySeconds(seconds);
       setShowAntidelayDialog(false);
       setAntidelayInput('');
+      
+      // Reschedule notifications with new antidelay
+      if (savedSignals.length > 0) {
+        scheduleAllSignalNotifications(savedSignals);
+      }
     }
   };
 

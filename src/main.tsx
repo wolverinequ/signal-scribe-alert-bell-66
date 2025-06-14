@@ -9,6 +9,15 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
         console.log('SW registered: ', registration);
+        
+        // Register for background sync
+        if ('sync' in window.ServiceWorkerRegistration.prototype) {
+          registration.sync.register('signal-check').then(() => {
+            console.log('Background sync registered');
+          }).catch((err) => {
+            console.log('Background sync registration failed:', err);
+          });
+        }
       })
       .catch((registrationError) => {
         console.log('SW registration failed: ', registrationError);
@@ -22,6 +31,18 @@ if ('Notification' in window && Notification.permission === 'default') {
     console.log('Notification permission:', permission);
   });
 }
+
+// Handle visibility changes for background task management
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    console.log('App moved to background');
+    // The background task will be started by the useSignalTracker hook
+  } else {
+    console.log('App returned to foreground');
+    // Reload signals from storage to sync any changes made in background
+    window.dispatchEvent(new CustomEvent('app-foreground'));
+  }
+});
 
 // Prevent zoom on mobile
 document.addEventListener('touchstart', (event) => {
