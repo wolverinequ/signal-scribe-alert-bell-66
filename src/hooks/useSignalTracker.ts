@@ -4,7 +4,7 @@ import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
 import { useAudioManager } from './useAudioManager';
-import { updateSignalsInServiceWorker, clearSignalsInServiceWorker, requestBackgroundSync } from '@/utils/backgroundSync';
+import { updateSignalsInServiceWorker, clearSignalsInServiceWorker, requestBackgroundSync, keepServiceWorkerActive } from '@/utils/backgroundSync';
 
 export const useSignalTracker = () => {
   const [signalsText, setSignalsText] = useState('');
@@ -26,6 +26,11 @@ export const useSignalTracker = () => {
   const isLongPressRef = useRef(false);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
+  // Initialize service worker keep-alive mechanism
+  useEffect(() => {
+    keepServiceWorkerActive();
+  }, []);
+
   // Clear everything when app is closed/refreshed
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -37,6 +42,11 @@ export const useSignalTracker = () => {
         // App is backgrounded, ensure service worker has latest data
         updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
         requestBackgroundSync();
+        console.log('App backgrounded, signals sent to service worker');
+      } else if (document.visibilityState === 'visible') {
+        // App is foregrounded, sync any changes
+        console.log('App foregrounded');
+        updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
       }
     };
 
@@ -137,9 +147,11 @@ export const useSignalTracker = () => {
     const signals = parseSignals(signalsText);
     setSavedSignals(signals);
     
-    // Update service worker with new signals
+    // Update service worker with new signals immediately
     updateSignalsInServiceWorker(signals, antidelaySeconds);
     requestBackgroundSync();
+    
+    console.log('Signals saved and sent to service worker:', signals.length);
   };
 
   // Set Ring button handlers
@@ -188,6 +200,9 @@ export const useSignalTracker = () => {
       setAntidelaySeconds(seconds);
       setShowAntidelayDialog(false);
       setAntidelayInput('');
+      
+      // Update service worker with new antidelay value
+      updateSignalsInServiceWorker(savedSignals, seconds);
     }
   };
 
