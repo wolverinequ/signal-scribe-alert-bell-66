@@ -35,7 +35,12 @@ export const useSignalTracker = () => {
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
-    handleAntidelayCancel
+    handleAntidelayCancel,
+    // Expose these values for ringtone selection dialog
+    ringtoneDialogOpen,
+    setRingtoneDialogOpen,
+    handleSelectCustomSound,
+    handleSelectDefaultSound,
   } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds);
 
   // Start background task when app loads and signals exist
@@ -73,6 +78,12 @@ export const useSignalTracker = () => {
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
-    handleAntidelayCancel
+    handleAntidelayCancel,
+    // Ringtone dialog props needed in Index.tsx:
+    ringtoneDialogOpen,
+    setRingtoneDialogOpen,
+    handleSelectCustomSound,
+    handleSelectDefaultSound,
   };
 };
+
