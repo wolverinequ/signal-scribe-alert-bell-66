@@ -30,11 +30,27 @@ const config: CapacitorConfig = {
       iconColor: "#488AFF",
       sound: "beep.wav",
       wakeup: true,
-      priority: "high",
+      priority: "max",
       category: "alarm",
-      importance: "high"
+      importance: "max",
+      ongoing: true,
+      fullScreenIntent: true,
+      showWhen: true,
+      autoCancel: false,
+      largeBody: "Binary Options Signal Alert - Wake Up!",
+      summaryText: "Tap to view signal details"
     }
   },
+  android: {
+    permissions: [
+      "android.permission.WAKE_LOCK",
+      "android.permission.SYSTEM_ALERT_WINDOW",
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      "android.permission.VIBRATE",
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      "android.permission.FOREGROUND_SERVICE"
+    ]
+  }
 };
 
 export default config;

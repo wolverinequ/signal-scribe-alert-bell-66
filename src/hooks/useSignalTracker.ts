@@ -74,18 +74,33 @@ export const useSignalTracker = () => {
     };
   }, [savedSignals]);
 
-  // Ring notification
+  // Enhanced ring notification with force wake-up
   const triggerRing = async (signal: Signal) => {
     setIsRinging(true);
     setCurrentRingingSignal(signal);
     
-    // Wake up screen if supported
-    const lock = await requestWakeLock();
-    setWakeLock(lock);
+    // ENHANCED: Force screen wake-up with multiple methods
+    try {
+      // Import and use the enhanced wake-up function
+      const { forceScreenWakeUp } = await import('@/utils/wakeLockUtils');
+      await forceScreenWakeUp();
+      
+      // Also request standard wake lock
+      const lock = await requestWakeLock();
+      setWakeLock(lock);
+    } catch (error) {
+      console.error('Wake-up failed:', error);
+      // Fallback to basic wake lock
+      const lock = await requestWakeLock();
+      setWakeLock(lock);
+    }
 
-    // Wake up screen on mobile by trying to focus the window
-    if (document.hidden) {
-      window.focus();
+    // Send wake-up request to service worker
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'WAKE_UP_REQUEST',
+        signal: signal
+      });
     }
 
     // Play custom ringtone or default beep and track audio instances
