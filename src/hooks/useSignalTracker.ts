@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
@@ -8,9 +7,10 @@ import { useAudioManager } from './useAudioManager';
 import { 
   updateSignalsInServiceWorker, 
   clearSignalsInServiceWorker, 
-  requestBackgroundSync, 
   keepServiceWorkerActive,
-  forceSignalCheck
+  forceSignalCheck,
+  ensureNotificationPermission,
+  ensureServiceWorkerRegistration
 } from '@/utils/backgroundSync';
 
 export const useSignalTracker = () => {
@@ -33,51 +33,55 @@ export const useSignalTracker = () => {
   const isLongPressRef = useRef(false);
   const { customRingtone, triggerRingtoneSelection } = useAudioManager();
 
-  // Initialize service worker keep-alive mechanism
+  // Enhanced initialization
   useEffect(() => {
-    keepServiceWorkerActive();
+    const initializeApp = async () => {
+      // Ensure service worker is registered
+      await ensureServiceWorkerRegistration();
+      
+      // Ensure notification permission
+      await ensureNotificationPermission();
+      
+      // Start keep-alive mechanism
+      keepServiceWorkerActive();
+      
+      console.log('App initialized with enhanced background support');
+    };
+    
+    initializeApp();
   }, []);
 
-  // Handle app lifecycle events
+  // Enhanced app lifecycle handling
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      clearSignalsInServiceWorker();
-    };
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        // App is backgrounded, ensure service worker has latest data
-        console.log('App backgrounded, updating service worker');
+        console.log('App backgrounded - ensuring service worker has latest data');
         updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
         forceSignalCheck();
       } else if (document.visibilityState === 'visible') {
-        // App is foregrounded
-        console.log('App foregrounded, syncing signals');
+        console.log('App foregrounded - syncing with service worker');
         updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
         forceSignalCheck();
       }
     };
 
-    const handlePageHide = () => {
-      // Page is being hidden/unloaded
+    const handleBeforeUnload = () => {
+      // Ensure service worker continues running
       updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
     };
 
-    const handlePageShow = () => {
-      // Page is being shown/loaded
-      forceSignalCheck();
+    const handlePageHide = () => {
+      updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pagehide', handlePageHide);
-    window.addEventListener('pageshow', handlePageShow);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handlePageHide);
-      window.removeEventListener('pageshow', handlePageShow);
     };
   }, [savedSignals, antidelaySeconds]);
 
@@ -90,7 +94,7 @@ export const useSignalTracker = () => {
     const lock = await requestWakeLock();
     setWakeLock(lock);
 
-    // Play custom ringtone or default beep and track audio instances
+    // Play custom ringtone or default beep
     const audio = await playCustomRingtone(customRingtone, audioContextsRef);
     if (audio instanceof HTMLAudioElement) {
       audioInstancesRef.current.push(audio);
@@ -104,7 +108,7 @@ export const useSignalTracker = () => {
     );
   };
 
-  // Check signals every second for precise timing when app is active
+  // Enhanced foreground checking (when app is visible)
   useEffect(() => {
     if (savedSignals.length > 0 && document.visibilityState === 'visible') {
       intervalRef.current = setInterval(() => {
@@ -166,11 +170,11 @@ export const useSignalTracker = () => {
     const signals = parseSignals(signalsText);
     setSavedSignals(signals);
     
-    // Update service worker with new signals immediately and force check
+    // Immediately send to service worker with enhanced reliability
     updateSignalsInServiceWorker(signals, antidelaySeconds);
     forceSignalCheck();
     
-    console.log('Signals saved and sent to service worker:', signals.length);
+    console.log('Signals saved and sent to enhanced service worker:', signals.length);
   };
 
   // Set Ring button handlers

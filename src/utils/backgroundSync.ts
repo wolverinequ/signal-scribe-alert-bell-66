@@ -1,8 +1,21 @@
 export const updateSignalsInServiceWorker = (signals: any[], antidelaySeconds: number) => {
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({
-      type: 'UPDATE_SIGNALS',
-      data: { signals, antidelaySeconds }
+  if ('serviceWorker' in navigator) {
+    // Method 1: Direct message to active service worker
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'UPDATE_SIGNALS',
+        data: { signals, antidelaySeconds }
+      });
+    }
+    
+    // Method 2: Wait for service worker to be ready
+    navigator.serviceWorker.ready.then((registration) => {
+      if (registration.active) {
+        registration.active.postMessage({
+          type: 'UPDATE_SIGNALS',
+          data: { signals, antidelaySeconds }
+        });
+      }
     });
     
     console.log('Signals sent to service worker:', signals.length);
@@ -10,19 +23,41 @@ export const updateSignalsInServiceWorker = (signals: any[], antidelaySeconds: n
 };
 
 export const updateRingtoneInServiceWorker = (ringtone: string | null) => {
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({
-      type: 'UPDATE_RINGTONE',
-      data: { ringtone }
+  if ('serviceWorker' in navigator) {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'UPDATE_RINGTONE',
+        data: { ringtone }
+      });
+    }
+    
+    navigator.serviceWorker.ready.then((registration) => {
+      if (registration.active) {
+        registration.active.postMessage({
+          type: 'UPDATE_RINGTONE',
+          data: { ringtone }
+        });
+      }
     });
   }
 };
 
 export const clearSignalsInServiceWorker = () => {
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({
-      type: 'CLEAR_SIGNALS',
-      data: {}
+  if ('serviceWorker' in navigator) {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'CLEAR_SIGNALS',
+        data: {}
+      });
+    }
+    
+    navigator.serviceWorker.ready.then((registration) => {
+      if (registration.active) {
+        registration.active.postMessage({
+          type: 'CLEAR_SIGNALS',
+          data: {}
+        });
+      }
     });
   }
 };
@@ -39,10 +74,9 @@ export const requestBackgroundSync = () => {
   }
 };
 
-// Enhanced keep alive mechanism
+// Enhanced keep alive with multiple mechanisms
 export const keepServiceWorkerActive = () => {
   if ('serviceWorker' in navigator) {
-    // Send periodic pings to keep service worker active and trigger checks
     const sendPing = () => {
       if (navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
@@ -50,31 +84,80 @@ export const keepServiceWorkerActive = () => {
           data: { timestamp: Date.now() }
         });
       }
+      
+      navigator.serviceWorker.ready.then((registration) => {
+        if (registration.active) {
+          registration.active.postMessage({
+            type: 'PING',
+            data: { timestamp: Date.now() }
+          });
+        }
+      });
     };
     
     // Initial ping
     sendPing();
     
-    // Regular pings every 15 seconds
-    setInterval(sendPing, 15000);
+    // Regular pings every 10 seconds (more frequent)
+    setInterval(sendPing, 10000);
     
-    // Also send ping when visibility changes
+    // Ping on visibility change
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        sendPing();
-      }
+      sendPing();
     });
+    
+    // Ping on focus/blur
+    window.addEventListener('focus', sendPing);
+    window.addEventListener('blur', sendPing);
   }
 };
 
-// Force service worker to check signals immediately
 export const forceSignalCheck = () => {
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({
-      type: 'PING',
-      data: { forceCheck: true, timestamp: Date.now() }
+  if ('serviceWorker' in navigator) {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'PING',
+        data: { forceCheck: true, timestamp: Date.now() }
+      });
+    }
+    
+    navigator.serviceWorker.ready.then((registration) => {
+      if (registration.active) {
+        registration.active.postMessage({
+          type: 'PING',
+          data: { forceCheck: true, timestamp: Date.now() }
+        });
+      }
     });
   }
   
   requestBackgroundSync();
+};
+
+// Enhanced notification permission handling
+export const ensureNotificationPermission = async () => {
+  if ('Notification' in window) {
+    if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      console.log('Notification permission:', permission);
+      return permission === 'granted';
+    }
+    return Notification.permission === 'granted';
+  }
+  return false;
+};
+
+// Service worker registration helper
+export const ensureServiceWorkerRegistration = async () => {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service worker registered:', registration);
+      return registration;
+    } catch (error) {
+      console.error('Service worker registration failed:', error);
+      return null;
+    }
+  }
+  return null;
 };

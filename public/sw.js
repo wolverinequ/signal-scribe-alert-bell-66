@@ -1,160 +1,116 @@
-// Service Worker for background notifications and mobile support
+// Enhanced Service Worker for reliable background notifications
 let savedSignals = [];
 let customRingtone = null;
 let antidelaySeconds = 15;
-let lastCheckTime = 0;
 let db = null;
+let checkInterval = null;
+let heartbeatInterval = null;
 
-// IndexedDB setup for persistent storage
+// IndexedDB setup
 const DB_NAME = 'SignalTrackerDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'signals';
 
-// Initialize IndexedDB
+// Initialize IndexedDB with proper error handling
 const initDB = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      db = request.result;
-      resolve(db);
-    };
-    
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-        store.createIndex('timestamp', 'timestamp', { unique: false });
-      }
-    };
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      
+      request.onerror = () => {
+        console.error('IndexedDB error:', request.error);
+        resolve(null); // Resolve with null instead of rejecting
+      };
+      
+      request.onsuccess = () => {
+        db = request.result;
+        console.log('IndexedDB initialized successfully');
+        resolve(db);
+      };
+      
+      request.onupgradeneeded = (event) => {
+        const database = event.target.result;
+        if (!database.objectStoreNames.contains(STORE_NAME)) {
+          const store = database.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+          store.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+      };
+    } catch (error) {
+      console.error('IndexedDB initialization failed:', error);
+      resolve(null);
+    }
   });
 };
 
 // Save signals to IndexedDB
-const saveSignalsToDB = (signals) => {
+const saveSignalsToDB = async (signals) => {
   if (!db) return;
-  const transaction = db.transaction([STORE_NAME], 'readwrite');
-  const store = transaction.objectStore(STORE_NAME);
-  
-  // Clear existing signals
-  store.clear();
-  
-  // Add new signals
-  signals.forEach(signal => {
-    store.add({
-      ...signal,
-      savedAt: Date.now()
+  try {
+    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    
+    // Clear existing signals
+    await new Promise((resolve) => {
+      const clearRequest = store.clear();
+      clearRequest.onsuccess = () => resolve();
+      clearRequest.onerror = () => resolve();
     });
-  });
+    
+    // Add new signals
+    for (const signal of signals) {
+      await new Promise((resolve) => {
+        const addRequest = store.add({
+          ...signal,
+          savedAt: Date.now()
+        });
+        addRequest.onsuccess = () => resolve();
+        addRequest.onerror = () => resolve();
+      });
+    }
+    
+    console.log('Signals saved to IndexedDB:', signals.length);
+  } catch (error) {
+    console.error('Error saving signals to DB:', error);
+  }
 };
 
 // Load signals from IndexedDB
-const loadSignalsFromDB = () => {
-  return new Promise((resolve) => {
-    if (!db) {
-      resolve([]);
-      return;
-    }
-    
+const loadSignalsFromDB = async () => {
+  if (!db) return [];
+  try {
     const transaction = db.transaction([STORE_NAME], 'readonly');
     const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
     
-    request.onsuccess = () => {
-      const signals = request.result || [];
-      resolve(signals);
-    };
-    
-    request.onerror = () => resolve([]);
-  });
+    return new Promise((resolve) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => resolve([]);
+    });
+  } catch (error) {
+    console.error('Error loading signals from DB:', error);
+    return [];
+  }
 };
 
-self.addEventListener('install', (event) => {
-  console.log('Service Worker installing');
-  event.waitUntil(initDB());
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating');
-  event.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-      initDB()
-    ])
-  );
-});
-
-// Listen for messages from the main app
-self.addEventListener('message', async (event) => {
-  const { type, data } = event.data;
+// Enhanced signal checking with multiple timing strategies
+const checkSignalTime = (signal, currentTime, antidelay = 15) => {
+  if (!signal.timestamp || signal.triggered) return false;
   
-  switch (type) {
-    case 'UPDATE_SIGNALS':
-      savedSignals = data.signals || [];
-      antidelaySeconds = data.antidelaySeconds || 15;
-      lastCheckTime = Date.now();
-      console.log('Updated signals in SW:', savedSignals.length);
-      
-      // Reset all triggered flags and save to IndexedDB
-      savedSignals = savedSignals.map(s => ({ ...s, triggered: false }));
-      await saveSignalsToDB(savedSignals);
-      
-      // Schedule immediate check
-      scheduleSignalCheck();
-      break;
-      
-    case 'UPDATE_RINGTONE':
-      customRingtone = data.ringtone;
-      break;
-      
-    case 'CLEAR_SIGNALS':
-      savedSignals = [];
-      customRingtone = null;
-      if (db) {
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        transaction.objectStore(STORE_NAME).clear();
-      }
-      console.log('Cleared signals in SW');
-      break;
-      
-    case 'PING':
-      // Keep alive ping - schedule a check
-      scheduleSignalCheck();
-      break;
-  }
-});
-
-// Background sync for signal monitoring
-self.addEventListener('sync', (event) => {
-  console.log('Background sync triggered:', event.tag);
-  if (event.tag === 'signal-check') {
-    event.waitUntil(performSignalCheck());
-  }
-});
-
-// Push event handler for additional reliability
-self.addEventListener('push', (event) => {
-  console.log('Push event received');
-  event.waitUntil(performSignalCheck());
-});
-
-// Schedule a signal check using multiple methods
-function scheduleSignalCheck() {
-  // Method 1: Background Sync (most reliable)
-  if (self.registration && self.registration.sync) {
-    self.registration.sync.register('signal-check').catch(err => {
-      console.log('Background sync registration failed:', err);
-    });
-  }
+  const [signalHours, signalMinutes] = signal.timestamp.split(':').map(Number);
+  if (isNaN(signalHours) || isNaN(signalMinutes)) return false;
   
-  // Method 2: Immediate check
-  performSignalCheck();
-}
+  // Create target time
+  const targetDate = new Date();
+  targetDate.setHours(signalHours, signalMinutes, 0, 0);
+  const targetTime = targetDate.getTime() - (antidelay * 1000);
+  
+  // Check with tolerance for missed signals (30 second window)
+  const timeDiff = currentTime - targetTime;
+  return timeDiff >= 0 && timeDiff <= 30000;
+};
 
 // Main signal checking function
-async function performSignalCheck() {
+const performSignalCheck = async () => {
   try {
     // Load signals from IndexedDB if not in memory
     if (savedSignals.length === 0) {
@@ -163,106 +119,52 @@ async function performSignalCheck() {
     
     if (savedSignals.length === 0) return;
     
-    const now = new Date();
-    const currentTime = now.getTime();
-    const currentHours = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentSeconds = now.getSeconds();
+    const currentTime = Date.now();
+    const now = new Date(currentTime);
     
-    console.log(`Checking signals at ${currentHours}:${currentMinutes}:${currentSeconds}`);
+    console.log(`SW: Checking signals at ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`);
     
-    // Check for missed signals if we haven't checked in a while
-    const timeSinceLastCheck = currentTime - lastCheckTime;
-    if (timeSinceLastCheck > 5000) { // More than 5 seconds
-      console.log('Checking for missed signals, gap:', timeSinceLastCheck);
-      await checkMissedSignals(currentTime);
-    }
+    let hasTriggered = false;
     
-    // Check current signals
     for (let i = 0; i < savedSignals.length; i++) {
       const signal = savedSignals[i];
-      if (signal.triggered) continue;
       
-      if (signal.timestamp && signal.timestamp.includes(':')) {
-        const [signalHours, signalMinutes] = signal.timestamp.split(':').map(Number);
-        
-        // Calculate target time with antidelay
-        const signalDate = new Date();
-        signalDate.setHours(signalHours, signalMinutes, 0, 0);
-        const targetTime = new Date(signalDate.getTime() - (antidelaySeconds * 1000));
-        const targetHours = targetTime.getHours();
-        const targetMinutes = targetTime.getMinutes();
-        const targetSeconds = targetTime.getSeconds();
-        
-        // Check if current time matches target time (with 2-second tolerance)
-        const timeMatches = currentHours === targetHours && 
-                           currentMinutes === targetMinutes && 
-                           Math.abs(currentSeconds - targetSeconds) <= 2;
-        
-        if (timeMatches) {
-          await triggerSignal(signal, i);
-        }
+      if (checkSignalTime(signal, currentTime, antidelaySeconds)) {
+        await triggerSignal(signal, i);
+        hasTriggered = true;
       }
     }
     
-    lastCheckTime = currentTime;
-    
-    // Schedule next check if there are untriggered signals
-    const hasUntriggeredSignals = savedSignals.some(s => !s.triggered);
-    if (hasUntriggeredSignals) {
-      setTimeout(() => scheduleSignalCheck(), 1000);
+    if (hasTriggered) {
+      await saveSignalsToDB(savedSignals);
     }
     
   } catch (error) {
     console.error('Error in performSignalCheck:', error);
   }
-}
+};
 
-// Check for missed signals
-async function checkMissedSignals(currentTime) {
-  for (let i = 0; i < savedSignals.length; i++) {
-    const signal = savedSignals[i];
-    if (signal.triggered || !signal.timestamp || !signal.timestamp.includes(':')) continue;
-    
-    const [signalHours, signalMinutes] = signal.timestamp.split(':').map(Number);
-    
-    // Calculate target time with antidelay
-    const signalDate = new Date();
-    signalDate.setHours(signalHours, signalMinutes, 0, 0);
-    const targetTime = new Date(signalDate.getTime() - (antidelaySeconds * 1000));
-    
-    // Check if target time has passed (within last 5 minutes to avoid old signals)
-    const timeDiff = currentTime - targetTime.getTime();
-    
-    if (timeDiff > 0 && timeDiff < 300000) { // Within last 5 minutes
-      console.log('Triggering missed signal:', signal);
-      await triggerSignal(signal, i);
-    }
-  }
-}
-
-// Trigger signal notification
-async function triggerSignal(signal, index) {
+// Trigger signal notification with enhanced settings
+const triggerSignal = async (signal, index) => {
   try {
-    // Mark as triggered in memory and persist
+    // Mark as triggered
     savedSignals[index].triggered = true;
-    await saveSignalsToDB(savedSignals);
     
     const title = 'Signal Alert';
     const body = signal.asset ? 
       `${signal.asset} - ${signal.direction} at ${signal.timestamp}` : 
       `Signal at ${signal.timestamp}`;
     
-    // Show notification with sound
+    // Enhanced notification with maximum alertness
     await self.registration.showNotification(title, {
       body: body,
       icon: '/placeholder.svg',
       badge: '/placeholder.svg',
-      tag: `signal-${Date.now()}`,
+      tag: `signal-${Date.now()}-${Math.random()}`,
       requireInteraction: true,
       silent: false,
       renotify: true,
-      vibrate: [200, 100, 200, 100, 200],
+      vibrate: [500, 200, 500, 200, 500, 200, 500],
       actions: [
         { action: 'dismiss', title: 'Dismiss' }
       ],
@@ -272,34 +174,146 @@ async function triggerSignal(signal, index) {
       }
     });
     
-    console.log('Signal notification triggered:', signal);
+    console.log('SW: Signal notification triggered:', signal.timestamp);
     
   } catch (error) {
     console.error('Error triggering signal:', error);
   }
-}
+};
 
-// Handle notification clicks
+// Continuous checking mechanism
+const startContinuousChecking = () => {
+  // Clear existing intervals
+  if (checkInterval) clearInterval(checkInterval);
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  
+  // Primary check every second
+  checkInterval = setInterval(() => {
+    performSignalCheck();
+  }, 1000);
+  
+  // Heartbeat every 15 seconds to keep service worker alive
+  heartbeatInterval = setInterval(() => {
+    console.log('SW: Heartbeat at', new Date().toLocaleTimeString());
+    performSignalCheck(); // Also check on heartbeat
+  }, 15000);
+  
+  console.log('SW: Continuous checking started');
+};
+
+// Stop continuous checking
+const stopContinuousChecking = () => {
+  if (checkInterval) {
+    clearInterval(checkInterval);
+    checkInterval = null;
+  }
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  console.log('SW: Continuous checking stopped');
+};
+
+// Service Worker Event Listeners
+self.addEventListener('install', (event) => {
+  console.log('SW: Installing');
+  event.waitUntil(initDB());
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  console.log('SW: Activating');
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      initDB()
+    ])
+  );
+});
+
+// Enhanced message handling
+self.addEventListener('message', async (event) => {
+  const { type, data } = event.data;
+  
+  switch (type) {
+    case 'UPDATE_SIGNALS':
+      savedSignals = (data.signals || []).map(s => ({ ...s, triggered: false }));
+      antidelaySeconds = data.antidelaySeconds || 15;
+      
+      await saveSignalsToDB(savedSignals);
+      
+      if (savedSignals.length > 0) {
+        startContinuousChecking();
+      } else {
+        stopContinuousChecking();
+      }
+      
+      console.log('SW: Updated signals:', savedSignals.length);
+      break;
+      
+    case 'UPDATE_RINGTONE':
+      customRingtone = data.ringtone;
+      break;
+      
+    case 'CLEAR_SIGNALS':
+      savedSignals = [];
+      customRingtone = null;
+      stopContinuousChecking();
+      
+      if (db) {
+        try {
+          const transaction = db.transaction([STORE_NAME], 'readwrite');
+          transaction.objectStore(STORE_NAME).clear();
+        } catch (error) {
+          console.error('Error clearing DB:', error);
+        }
+      }
+      console.log('SW: Cleared all signals');
+      break;
+      
+    case 'PING':
+      console.log('SW: Ping received');
+      await performSignalCheck();
+      break;
+  }
+});
+
+// Background sync
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'signal-check') {
+    event.waitUntil(performSignalCheck());
+  }
+});
+
+// Push event for additional reliability
+self.addEventListener('push', (event) => {
+  event.waitUntil(performSignalCheck());
+});
+
+// Notification click handler
 self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked');
   event.notification.close();
   
-  if (event.action === 'dismiss') {
-    return;
+  if (event.action !== 'dismiss') {
+    event.waitUntil(
+      self.clients.matchAll().then((clients) => {
+        if (clients.length > 0) {
+          return clients[0].focus();
+        }
+        return self.clients.openWindow('/');
+      })
+    );
   }
-  
-  event.waitUntil(
-    self.clients.matchAll().then((clients) => {
-      if (clients.length > 0) {
-        return clients[0].focus();
-      }
-      return self.clients.openWindow('/');
-    })
-  );
 });
 
 // Initialize on startup
 initDB().then(() => {
-  console.log('Service Worker database initialized');
-  scheduleSignalCheck();
+  console.log('SW: Initialized');
+  // Start checking immediately if we have signals
+  loadSignalsFromDB().then((signals) => {
+    if (signals.length > 0) {
+      savedSignals = signals;
+      startContinuousChecking();
+    }
+  });
 });
