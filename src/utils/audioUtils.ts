@@ -56,7 +56,7 @@ const createDefaultBeep = (): Promise<HTMLAudioElement> => {
       const audio = new Audio();
       audio.loop = true;
       // This is a very simple beep sound encoded as base64
-      audio.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAaBC2E1O/LfC0HL4TO8+GJOQgSYrjo8qNVFAxKn9/yu2EaCjWH0+7MfywFLIHO8tiJOAkXZLvt6J5NEAxPqODxtmMcBzqP2O/NeSsFLobL7+ONQQYXZL7w45lNFg1LndvyvGEbBy+F0+7KfSgFK47M9dyOPwkVYLbn7qZnGw7+k9Xq' audio.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAaBC2E1O/LfC0HL';
+      audio.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAaBC2E1O/LfC0HL';
       resolve(audio);
     }
   });
