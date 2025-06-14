@@ -1,10 +1,17 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
 import { useAudioManager } from './useAudioManager';
-import { updateSignalsInServiceWorker, clearSignalsInServiceWorker, requestBackgroundSync, keepServiceWorkerActive } from '@/utils/backgroundSync';
+import { 
+  updateSignalsInServiceWorker, 
+  clearSignalsInServiceWorker, 
+  requestBackgroundSync, 
+  keepServiceWorkerActive,
+  forceSignalCheck
+} from '@/utils/backgroundSync';
 
 export const useSignalTracker = () => {
   const [signalsText, setSignalsText] = useState('');
@@ -31,7 +38,7 @@ export const useSignalTracker = () => {
     keepServiceWorkerActive();
   }, []);
 
-  // Clear everything when app is closed/refreshed
+  // Handle app lifecycle events
   useEffect(() => {
     const handleBeforeUnload = () => {
       clearSignalsInServiceWorker();
@@ -40,22 +47,37 @@ export const useSignalTracker = () => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         // App is backgrounded, ensure service worker has latest data
+        console.log('App backgrounded, updating service worker');
         updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
-        requestBackgroundSync();
-        console.log('App backgrounded, signals sent to service worker');
+        forceSignalCheck();
       } else if (document.visibilityState === 'visible') {
-        // App is foregrounded, sync any changes
-        console.log('App foregrounded');
+        // App is foregrounded
+        console.log('App foregrounded, syncing signals');
         updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
+        forceSignalCheck();
       }
+    };
+
+    const handlePageHide = () => {
+      // Page is being hidden/unloaded
+      updateSignalsInServiceWorker(savedSignals, antidelaySeconds);
+    };
+
+    const handlePageShow = () => {
+      // Page is being shown/loaded
+      forceSignalCheck();
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pageshow', handlePageShow);
     };
   }, [savedSignals, antidelaySeconds]);
 
@@ -115,7 +137,6 @@ export const useSignalTracker = () => {
     });
     audioInstancesRef.current = [];
     
-    // Stop ALL Web Audio API contexts
     audioContextsRef.current.forEach(context => {
       if (context && context.state !== 'closed') {
         context.close().catch(err => console.log('Audio context cleanup error:', err));
@@ -123,14 +144,12 @@ export const useSignalTracker = () => {
     });
     audioContextsRef.current = [];
     
-    // Additional cleanup: Stop any remaining audio elements on the page
     const allAudioElements = document.querySelectorAll('audio');
     allAudioElements.forEach(audio => {
       audio.pause();
       audio.currentTime = 0;
     });
     
-    // Stop ringing if currently ringing
     if (isRinging) {
       setIsRinging(false);
       setCurrentRingingSignal(null);
@@ -147,9 +166,9 @@ export const useSignalTracker = () => {
     const signals = parseSignals(signalsText);
     setSavedSignals(signals);
     
-    // Update service worker with new signals immediately
+    // Update service worker with new signals immediately and force check
     updateSignalsInServiceWorker(signals, antidelaySeconds);
-    requestBackgroundSync();
+    forceSignalCheck();
     
     console.log('Signals saved and sent to service worker:', signals.length);
   };
@@ -163,7 +182,6 @@ export const useSignalTracker = () => {
     
     longPressTimerRef.current = setTimeout(() => {
       isLongPressRef.current = true;
-      // Long press detected - show antidelay dialog
       setShowAntidelayDialog(true);
       setAntidelayInput(antidelaySeconds.toString());
     }, 3000);
@@ -179,7 +197,6 @@ export const useSignalTracker = () => {
       longPressTimerRef.current = null;
     }
     
-    // If it wasn't a long press and dialog is not showing, trigger ringtone selection
     if (!isLongPressRef.current && !showAntidelayDialog) {
       triggerRingtoneSelection();
     }
@@ -203,6 +220,7 @@ export const useSignalTracker = () => {
       
       // Update service worker with new antidelay value
       updateSignalsInServiceWorker(savedSignals, seconds);
+      forceSignalCheck();
     }
   };
 

@@ -5,8 +5,7 @@ export const updateSignalsInServiceWorker = (signals: any[], antidelaySeconds: n
       data: { signals, antidelaySeconds }
     });
     
-    // Also request background sync to ensure signals are monitored
-    requestBackgroundSync();
+    console.log('Signals sent to service worker:', signals.length);
   }
 };
 
@@ -31,11 +30,8 @@ export const clearSignalsInServiceWorker = () => {
 export const requestBackgroundSync = () => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then((registration) => {
-      // Type guard for Background Sync API
-      if ('sync' in registration && typeof (registration as any).sync.register === 'function') {
+      if ('sync' in registration) {
         return (registration as any).sync.register('signal-check');
-      } else {
-        console.log('Background sync not supported, using service worker intervals');
       }
     }).catch((err) => {
       console.log('Background sync registration failed:', err);
@@ -43,17 +39,42 @@ export const requestBackgroundSync = () => {
   }
 };
 
-// Additional function to keep service worker active
+// Enhanced keep alive mechanism
 export const keepServiceWorkerActive = () => {
   if ('serviceWorker' in navigator) {
-    // Send periodic messages to keep service worker active
-    setInterval(() => {
+    // Send periodic pings to keep service worker active and trigger checks
+    const sendPing = () => {
       if (navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: 'PING',
           data: { timestamp: Date.now() }
         });
       }
-    }, 25000); // Every 25 seconds to prevent service worker from sleeping
+    };
+    
+    // Initial ping
+    sendPing();
+    
+    // Regular pings every 15 seconds
+    setInterval(sendPing, 15000);
+    
+    // Also send ping when visibility changes
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        sendPing();
+      }
+    });
   }
+};
+
+// Force service worker to check signals immediately
+export const forceSignalCheck = () => {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'PING',
+      data: { forceCheck: true, timestamp: Date.now() }
+    });
+  }
+  
+  requestBackgroundSync();
 };
