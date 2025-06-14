@@ -38,14 +38,10 @@ export const useSignalTracker = () => {
     handleAntidelaySubmit,
     handleAntidelayCancel,
     ringtoneDialogOpen,
+    closeRingtoneDialog,
     handleSelectCustomSound,
     handleSelectDefaultSound,
   } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds);
-
-  const {
-    showRingtoneDialog,
-    closeRingtoneDialog
-  } = useAudioManager();
 
   // Start background task when app loads and signals exist
   useEffect(() => {
@@ -83,8 +79,8 @@ export const useSignalTracker = () => {
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
     handleAntidelayCancel,
-    ringtoneDialogOpen: showRingtoneDialog,
-    setRingtoneDialogOpen: closeRingtoneDialog,
+    ringtoneDialogOpen,
+    closeRingtoneDialog,
     handleSelectCustomSound,
     handleSelectDefaultSound,
     // Remove startup dialog since we now use default sound by default
