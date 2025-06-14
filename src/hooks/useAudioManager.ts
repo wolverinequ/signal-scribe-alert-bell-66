@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 
 const RINGTONE_STORAGE_KEY = 'selected_custom_ringtone_data';
@@ -146,6 +145,7 @@ export const useAudioManager = () => {
   };
 
   const openRingtoneDialog = () => {
+    console.log('🔔 Opening ringtone selection dialog...');
     setShowRingtoneDialog(true);
   };
 

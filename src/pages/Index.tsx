@@ -25,7 +25,7 @@ const Index = () => {
     handleAntidelaySubmit,
     handleAntidelayCancel,
     ringtoneDialogOpen,
-    setRingtoneDialogOpen,
+    closeRingtoneDialog,
     handleSelectCustomSound,
     handleSelectDefaultSound,
   } = useSignalTracker();
@@ -58,7 +58,7 @@ const Index = () => {
         open={ringtoneDialogOpen}
         onSelectCustom={handleSelectCustomSound}
         onSelectDefault={handleSelectDefaultSound}
-        onClose={setRingtoneDialogOpen}
+        onClose={closeRingtoneDialog}
       />
     </div>
   );

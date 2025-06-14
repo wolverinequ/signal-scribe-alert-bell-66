@@ -50,7 +50,7 @@ export const useAntidelayManager = (
 
     // If it wasn't a long press and dialog isn't showing, open ringtone selection dialog
     if (!isLongPressRef.current && !showAntidelayDialog) {
-      console.log('🔔 Opening ringtone selection dialog...');
+      console.log('🔔 Set Ring button clicked - opening ringtone dialog');
       openRingtoneDialog();
     }
   };
@@ -107,7 +107,7 @@ export const useAntidelayManager = (
     handleAntidelaySubmit,
     handleAntidelayCancel,
     ringtoneDialogOpen: showRingtoneDialog,
-    setRingtoneDialogOpen: closeRingtoneDialog,
+    closeRingtoneDialog,
     handleSelectCustomSound,
     handleSelectDefaultSound,
   };
