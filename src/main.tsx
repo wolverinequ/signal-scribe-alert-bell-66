@@ -11,8 +11,8 @@ if ('serviceWorker' in navigator) {
         console.log('SW registered: ', registration);
         
         // Register for background sync if supported
-        if ('sync' in registration) {
-          registration.sync.register('signal-check').then(() => {
+        if ('sync' in registration && registration.sync) {
+          (registration.sync as any).register('signal-check').then(() => {
             console.log('Background sync registered');
           }).catch((err) => {
             console.log('Background sync registration failed:', err);
