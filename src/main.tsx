@@ -32,16 +32,26 @@ if ('Notification' in window && Notification.permission === 'default') {
   });
 }
 
-// Handle visibility changes for background task management
+// Handle visibility changes for background task management and wake-up
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     console.log('App moved to background');
     // The background task will be started by the useSignalTracker hook
   } else {
-    console.log('App returned to foreground');
+    console.log('App returned to foreground - screen woke up');
     // Reload signals from storage to sync any changes made in background
     window.dispatchEvent(new CustomEvent('app-foreground'));
   }
+});
+
+// Enhanced focus and blur handlers for wake-up detection
+window.addEventListener('focus', () => {
+  console.log('Window gained focus - possible wake-up event');
+  window.dispatchEvent(new CustomEvent('app-wakeup'));
+});
+
+window.addEventListener('blur', () => {
+  console.log('Window lost focus');
 });
 
 // Prevent zoom on mobile

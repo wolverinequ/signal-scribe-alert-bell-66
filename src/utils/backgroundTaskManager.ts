@@ -73,13 +73,16 @@ const triggerLocalNotification = async (signal: Signal) => {
           attachments: undefined,
           actionTypeId: '',
           extra: {
-            signal: JSON.stringify(signal)
+            signal: JSON.stringify(signal),
+            wakeup: true,
+            priority: 'high',
+            category: 'alarm'
           }
         }
       ]
     });
     
-    console.log('Local notification scheduled for signal:', signal);
+    console.log('Local notification with wake-up scheduled for signal:', signal);
   } catch (error) {
     console.error('Failed to schedule local notification:', error);
   }
@@ -115,7 +118,10 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
             attachments: undefined,
             actionTypeId: '',
             extra: {
-              signal: JSON.stringify(signal)
+              signal: JSON.stringify(signal),
+              wakeup: true,
+              priority: 'high',
+              category: 'alarm'
             }
           };
         }
@@ -127,7 +133,7 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
       await LocalNotifications.schedule({
         notifications: notifications as any[]
       });
-      console.log(`Scheduled ${notifications.length} notifications`);
+      console.log(`Scheduled ${notifications.length} wake-up notifications`);
     }
   } catch (error) {
     console.error('Failed to schedule signal notifications:', error);
