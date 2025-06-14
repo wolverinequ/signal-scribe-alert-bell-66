@@ -15,7 +15,7 @@ export const useAntidelayManager = (
   
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
-  const { showRingtoneSelectionDialog } = useAudioManager();
+  const { triggerRingtoneSelection } = useAudioManager();
 
   // Set Ring button handlers
   const handleSetRingMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
@@ -32,7 +32,7 @@ export const useAntidelayManager = (
     }, 3000);
   };
 
-  const handleSetRingMouseUp = async (e: React.MouseEvent | React.TouchEvent) => {
+  const handleSetRingMouseUp = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setSetRingButtonPressed(false);
@@ -42,9 +42,9 @@ export const useAntidelayManager = (
       longPressTimerRef.current = null;
     }
     
-    // If it wasn't a long press and dialog is not showing, show ringtone selection
+    // If it wasn't a long press and dialog is not showing, trigger ringtone selection
     if (!isLongPressRef.current && !showAntidelayDialog) {
-      await showRingtoneSelectionDialog();
+      triggerRingtoneSelection();
     }
   };
 
