@@ -39,6 +39,7 @@ export const stopBackgroundTask = () => {
 
 const checkSignalsInBackground = async () => {
   try {
+    // Use cached data to avoid repeated localStorage reads
     const signals = loadSignalsFromStorage();
     const antidelaySeconds = loadAntidelayFromStorage();
     

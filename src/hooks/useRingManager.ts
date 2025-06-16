@@ -52,12 +52,13 @@ export const useRingManager = (
     onSignalTriggered(signal);
   };
 
-  // Check signals every second for precise timing
+  // Check signals every second for precise timing using cached data
   useEffect(() => {
     if (savedSignals.length > 0) {
       console.log('🔔 RingManager: Starting signal monitoring interval with custom ringtone:', customRingtone);
       
       intervalRef.current = setInterval(() => {
+        // Use the savedSignals prop directly instead of loading from storage
         savedSignals.forEach(signal => {
           if (checkSignalTime(signal, antidelaySeconds)) {
             console.log('🔔 RingManager: Signal time matched, triggering ring:', signal);
