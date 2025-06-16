@@ -19,52 +19,6 @@ export const useRingManager = (
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const audioContextsRef = useRef<AudioContext[]>([]);
-  
-  // Time-based tracking to prevent multiple rings for the same signal
-  const recentlyTriggeredRef = useRef<Map<string, number>>(new Map());
-
-  // Helper function to create unique signal identifier
-  const getSignalId = (signal: Signal): string => {
-    return `${signal.timestamp}-${signal.timeframe}-${signal.asset}-${signal.direction}`;
-  };
-
-  // Helper function to check if signal was recently triggered (within 5 minutes)
-  const wasRecentlyTriggered = (signalId: string): boolean => {
-    const triggeredTime = recentlyTriggeredRef.current.get(signalId);
-    if (!triggeredTime) return false;
-    
-    const now = Date.now();
-    const fiveMinutesInMs = 5 * 60 * 1000;
-    
-    // Clean up old entries while checking
-    if (now - triggeredTime > fiveMinutesInMs) {
-      recentlyTriggeredRef.current.delete(signalId);
-      console.log('🔔 RingManager: Cleaned up old tracking for signal:', signalId);
-      return false;
-    }
-    
-    return true;
-  };
-
-  // Helper function to mark signal as recently triggered
-  const markAsTriggered = (signalId: string) => {
-    const now = Date.now();
-    recentlyTriggeredRef.current.set(signalId, now);
-    console.log('🔔 RingManager: Marked signal as triggered:', signalId, 'at', new Date(now).toLocaleTimeString());
-  };
-
-  // Cleanup old tracking entries periodically
-  const cleanupOldEntries = () => {
-    const now = Date.now();
-    const fiveMinutesInMs = 5 * 60 * 1000;
-    
-    for (const [signalId, triggeredTime] of recentlyTriggeredRef.current.entries()) {
-      if (now - triggeredTime > fiveMinutesInMs) {
-        recentlyTriggeredRef.current.delete(signalId);
-        console.log('🔔 RingManager: Cleaned up expired tracking for signal:', signalId);
-      }
-    }
-  };
 
   // Ring notification
   const triggerRing = async (signal: Signal) => {
@@ -100,34 +54,14 @@ export const useRingManager = (
 
   // Check signals every second for precise timing using cached data
   useEffect(() => {
-    // Clear previous interval and cleanup tracking on restart
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      console.log('🔔 RingManager: Previous signal monitoring interval cleared');
-    }
-
     if (savedSignals.length > 0) {
-      console.log('🔔 RingManager: Starting signal monitoring interval for', savedSignals.length, 'signals');
-      
-      // Clean up old tracking entries when starting new interval
-      cleanupOldEntries();
+      console.log('🔔 RingManager: Starting signal monitoring interval with custom ringtone:', customRingtone);
       
       intervalRef.current = setInterval(() => {
-        // Periodic cleanup of old entries
-        cleanupOldEntries();
-        
         // Use the savedSignals prop directly instead of loading from storage
         savedSignals.forEach(signal => {
-          const signalId = getSignalId(signal);
-          
-          // Check if signal time matches and hasn't been recently triggered
-          if (checkSignalTime(signal, antidelaySeconds) && !wasRecentlyTriggered(signalId)) {
+          if (checkSignalTime(signal, antidelaySeconds)) {
             console.log('🔔 RingManager: Signal time matched, triggering ring:', signal);
-            
-            // Mark as triggered with timestamp
-            markAsTriggered(signalId);
-            
-            // Trigger the ring
             triggerRing(signal);
           }
         });
@@ -140,7 +74,7 @@ export const useRingManager = (
         }
       };
     }
-  }, [savedSignals, antidelaySeconds]); // Removed customRingtone from dependencies
+  }, [savedSignals, customRingtone, antidelaySeconds]);
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = () => {
