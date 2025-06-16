@@ -1,12 +1,10 @@
 
 import React from 'react';
 import { useSignalTracker } from '@/hooks/useSignalTracker';
-import { useVisualDebugger } from '@/hooks/useVisualDebugger';
 import SignalInput from '@/components/SignalInput';
 import ControlPanel from '@/components/ControlPanel';
 import AntidelayDialog from '@/components/AntidelayDialog';
 import RingtoneSelectDialog from "@/components/RingtoneSelectDialog";
-import DebugOverlay from '@/components/DebugOverlay';
 
 const Index = () => {
   const {
@@ -32,11 +30,8 @@ const Index = () => {
     handleSelectDefaultSound,
   } = useSignalTracker();
 
-  const { logs, clearLogs } = useVisualDebugger();
-
   return (
     <div className="min-h-screen bg-background flex flex-col select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
-      <DebugOverlay logs={logs} onClear={clearLogs} />
       <SignalInput
         signalsText={signalsText}
         onSignalsTextChange={setSignalsText}
