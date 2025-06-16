@@ -9,6 +9,16 @@ export const useAudioManager = () => {
   const [isRingtoneLoaded, setIsRingtoneLoaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const loadingRef = useRef(false);
+  const currentBlobUrlRef = useRef<string | null>(null);
+
+  // Cleanup function to revoke blob URLs
+  const cleanupBlobUrl = () => {
+    if (currentBlobUrlRef.current) {
+      URL.revokeObjectURL(currentBlobUrlRef.current);
+      currentBlobUrlRef.current = null;
+      console.log('🧹 AudioManager: Previous blob URL revoked');
+    }
+  };
 
   // Load from storage when starting
   useEffect(() => {
@@ -25,6 +35,10 @@ export const useAudioManager = () => {
     if (storedData && storedName) {
       try {
         console.log('🎵 AudioManager: Found stored ringtone data, converting to blob URL...');
+        
+        // Clean up any existing blob URL first
+        cleanupBlobUrl();
+        
         const byteCharacters = atob(storedData);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -34,6 +48,8 @@ export const useAudioManager = () => {
         const blob = new Blob([byteArray], { type: 'audio/mpeg' });
         const url = URL.createObjectURL(blob);
         
+        // Track the new blob URL
+        currentBlobUrlRef.current = url;
         setCustomRingtone(url);
         setIsRingtoneLoaded(true);
         console.log('✅ AudioManager: Ringtone loaded from storage successfully:', storedName);
@@ -49,6 +65,13 @@ export const useAudioManager = () => {
     }
 
     loadingRef.current = false;
+  }, []);
+
+  // Cleanup effect to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      cleanupBlobUrl();
+    };
   }, []);
 
   // Initialize hidden file input once
@@ -79,6 +102,10 @@ export const useAudioManager = () => {
     if (file) {
       try {
         console.log('🎵 AudioManager: Processing new ringtone file:', file.name);
+        
+        // Clean up previous blob URL before creating new one
+        cleanupBlobUrl();
+        
         const reader = new FileReader();
         reader.onload = (e) => {
           const result = e.target?.result as string;
@@ -90,11 +117,13 @@ export const useAudioManager = () => {
           
           // Create new blob URL and update state immediately
           const url = URL.createObjectURL(file);
+          currentBlobUrlRef.current = url;
           setCustomRingtone(url);
           setIsRingtoneLoaded(true);
           
           console.log('✅ AudioManager: MP3 ringtone loaded and stored:', file.name);
           console.log('🔄 AudioManager: Audio state updated - customRingtone and isRingtoneLoaded set');
+          console.log('🆕 AudioManager: New blob URL created:', url.substring(0, 50) + '...');
         };
         reader.readAsDataURL(file);
       } catch (error) {

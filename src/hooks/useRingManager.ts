@@ -25,6 +25,31 @@ export const useRingManager = (
   const lastAntidelayRef = useRef<number>(0);
   const lastCustomRingtoneRef = useRef<string | null>(null);
 
+  // Clear cached audio instances when ringtone changes
+  useEffect(() => {
+    if (customRingtone !== lastCustomRingtoneRef.current) {
+      console.log('🔄 RingManager: Audio changed, clearing cached instances');
+      audioInstancesRef.current.forEach(audio => {
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      });
+      audioInstancesRef.current = [];
+      
+      // Stop any current ringing if audio changed
+      if (isRinging) {
+        setIsRinging(false);
+        setCurrentRingingSignal(null);
+        releaseWakeLock(wakeLock);
+        setWakeLock(null);
+      }
+      
+      lastCustomRingtoneRef.current = customRingtone;
+      console.log('✅ RingManager: Audio instances cleared for new ringtone');
+    }
+  }, [customRingtone, isRinging, wakeLock]);
+
   // Helper: construct unique signal ID
   const getSignalId = useCallback((signal: Signal): string => {
     return `${signal.asset || 'NO_ASSET'}-${signal.direction || 'NO_DIRECTION'}-${signal.timestamp}`;
@@ -95,7 +120,7 @@ export const useRingManager = (
     return (signalsChanged || antidelayChanged || audioChanged) && hasRequiredConditions;
   }, [savedSignals, antidelaySeconds, isRingtoneLoaded, customRingtone]);
 
-  // Stable monitoring effect - only restart when actually needed
+  // Enhanced monitoring effect with immediate response to audio changes
   useEffect(() => {
     const hasSignals = savedSignals.length > 0;
     const canMonitor = isRingtoneLoaded && customRingtone;
@@ -153,7 +178,7 @@ export const useRingManager = (
         monitoringActiveRef.current = false;
       }
     };
-  }, [savedSignals.length, isRingtoneLoaded, !!customRingtone, shouldRestartMonitoring, triggerRing, getSignalId, alreadyRangIds, antidelaySeconds]);
+  }, [savedSignals.length, isRingtoneLoaded, customRingtone, shouldRestartMonitoring, triggerRing, getSignalId, alreadyRangIds, antidelaySeconds]);
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = useCallback(() => {
