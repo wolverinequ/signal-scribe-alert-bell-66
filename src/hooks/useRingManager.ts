@@ -36,25 +36,24 @@ export const useRingManager = (
       const audio = await playCustomRingtone(customRingtone);
       if (audio instanceof HTMLAudioElement) {
         addAudioInstance(audio);
+        console.log('🔊 RingManager: Audio instance added successfully');
       }
 
       onSignalTriggered(signal);
+      console.log('✅ RingManager: Signal triggered successfully:', signal);
     } catch (error) {
       console.error('❌ RingManager: Failed to play ringtone:', error);
       stopRinging();
     }
   }, [customRingtone, isRingtoneLoaded, startRinging, addAudioInstance, onSignalTriggered, stopRinging]);
 
-  // Use signal monitoring hook
+  // Use signal monitoring hook - remove the redundant markSignalAsTriggered call
   const { markSignalAsTriggered } = useSignalMonitoring(
     savedSignals,
     antidelaySeconds,
     isRingtoneLoaded,
     customRingtone,
-    (signal: Signal) => {
-      triggerRing(signal);
-      markSignalAsTriggered(signal);
-    }
+    triggerRing // This will handle both triggering and marking as triggered
   );
 
   // Ring off button handler - stops ALL audio immediately

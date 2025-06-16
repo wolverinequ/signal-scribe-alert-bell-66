@@ -28,7 +28,14 @@ export const useSignalMonitoring = (
     console.log('✅ SignalMonitoring: Signal marked as triggered:', signalId);
   }, [getSignalId]);
 
-  // Signal monitoring effect
+  // Stabilize the callback to prevent infinite re-renders
+  const stableOnSignalShouldTrigger = useCallback((signal: Signal) => {
+    console.log('🎯 SignalMonitoring: Triggering signal:', signal);
+    onSignalShouldTrigger(signal);
+    markSignalAsTriggered(signal);
+  }, [onSignalShouldTrigger, markSignalAsTriggered]);
+
+  // Signal monitoring effect - removed alreadyRangIds from dependencies
   useEffect(() => {
     const hasSignals = savedSignals.length > 0;
     const canMonitor = isRingtoneLoaded && customRingtone;
@@ -56,12 +63,18 @@ export const useSignalMonitoring = (
       savedSignals.forEach(signal => {
         const signalId = getSignalId(signal);
         const shouldTrigger = checkSignalTime(signal, antidelaySeconds);
-        const notAlreadyRang = !alreadyRangIds.has(signalId);
         
-        if (shouldTrigger && notAlreadyRang) {
-          console.log(`🎯 SignalMonitoring: Signal should trigger at ${currentTime}:`, signal);
-          onSignalShouldTrigger(signal);
-        }
+        // Check against current alreadyRangIds state
+        setAlreadyRangIds(current => {
+          const notAlreadyRang = !current.has(signalId);
+          
+          if (shouldTrigger && notAlreadyRang) {
+            console.log(`🎯 SignalMonitoring: Signal should trigger at ${currentTime}:`, signal);
+            stableOnSignalShouldTrigger(signal);
+          }
+          
+          return current; // Don't modify state here
+        });
       });
     }, 1000);
 
@@ -72,7 +85,7 @@ export const useSignalMonitoring = (
         console.log('🧹 SignalMonitoring: Monitoring cleanup complete');
       }
     };
-  }, [savedSignals, antidelaySeconds, isRingtoneLoaded, customRingtone, onSignalShouldTrigger, getSignalId, alreadyRangIds]);
+  }, [savedSignals, antidelaySeconds, isRingtoneLoaded, customRingtone, stableOnSignalShouldTrigger, getSignalId]);
 
   return {
     markSignalAsTriggered

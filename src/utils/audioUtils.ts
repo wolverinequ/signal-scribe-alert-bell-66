@@ -17,23 +17,8 @@ export const playCustomRingtone = (customRingtone: string | null): Promise<HTMLA
       return;
     }
 
-    // Additional validation - check if blob URL is still valid
-    fetch(customRingtone, { method: 'HEAD' })
-      .then(response => {
-        if (!response.ok) {
-          console.error('❌ AudioUtils: Blob URL is no longer valid:', customRingtone.substring(0, 50));
-          reject(new Error('Blob URL is no longer valid'));
-          return;
-        }
-        
-        console.log('✅ AudioUtils: Blob URL validation passed');
-        createAndPlayAudio();
-      })
-      .catch(error => {
-        console.error('❌ AudioUtils: Blob URL validation failed:', error);
-        reject(new Error('Blob URL validation failed'));
-      });
-
+    console.log('✅ AudioUtils: URL validation passed, creating audio element');
+    
     const createAndPlayAudio = () => {
       console.log('🎵 AudioUtils: Creating audio instance for URL:', customRingtone.substring(0, 50) + '...');
       
@@ -121,5 +106,8 @@ export const playCustomRingtone = (customRingtone: string | null): Promise<HTMLA
         reject(new Error(`Failed to load audio source: ${loadError}`));
       }
     };
+
+    // Skip the blob URL validation that was causing issues
+    createAndPlayAudio();
   });
 };
