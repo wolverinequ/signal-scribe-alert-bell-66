@@ -59,7 +59,7 @@ export class IndexedDBManager {
           createdAt: Date.now()
         };
 
-        const transaction = this.db!.createTransaction([STORE_NAME], 'readwrite');
+        const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.put(ringtoneData);
 
@@ -93,7 +93,7 @@ export class IndexedDBManager {
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.createTransaction([STORE_NAME], 'readonly');
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
       const store = transaction.objectStore(STORE_NAME);
       const request = store.get('current_ringtone');
 
@@ -129,7 +129,7 @@ export class IndexedDBManager {
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.createTransaction([STORE_NAME], 'readwrite');
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
       const request = store.delete('current_ringtone');
 
@@ -151,7 +151,7 @@ export class IndexedDBManager {
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.createTransaction([STORE_NAME], 'readonly');
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
       const store = transaction.objectStore(STORE_NAME);
       const request = store.get('current_ringtone');
 
