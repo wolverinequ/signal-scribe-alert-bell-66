@@ -19,12 +19,14 @@ export const useAntidelayManager = (
 
   // Set Ring button handlers
   const handleSetRingMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+    console.log('🎛️ Set Ring button mouse down');
     e.preventDefault();
     e.stopPropagation();
     setSetRingButtonPressed(true);
     isLongPressRef.current = false;
     
     longPressTimerRef.current = setTimeout(() => {
+      console.log('🎛️ Long press detected - showing antidelay dialog');
       isLongPressRef.current = true;
       // Long press detected - show antidelay dialog
       setShowAntidelayDialog(true);
@@ -33,6 +35,11 @@ export const useAntidelayManager = (
   };
 
   const handleSetRingMouseUp = (e: React.MouseEvent | React.TouchEvent) => {
+    console.log('🎛️ Set Ring button mouse up', {
+      isLongPress: isLongPressRef.current,
+      showingDialog: showAntidelayDialog
+    });
+    
     e.preventDefault();
     e.stopPropagation();
     setSetRingButtonPressed(false);
@@ -44,11 +51,13 @@ export const useAntidelayManager = (
     
     // If it wasn't a long press and dialog is not showing, trigger ringtone selection
     if (!isLongPressRef.current && !showAntidelayDialog) {
+      console.log('🎛️ Short press detected - triggering ringtone selection');
       triggerRingtoneSelection();
     }
   };
 
   const handleSetRingMouseLeave = () => {
+    console.log('🎛️ Set Ring button mouse leave');
     setSetRingButtonPressed(false);
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
@@ -58,6 +67,7 @@ export const useAntidelayManager = (
 
   // Antidelay dialog handlers
   const handleAntidelaySubmit = () => {
+    console.log('🎛️ Antidelay dialog submit with value:', antidelayInput);
     const seconds = parseInt(antidelayInput);
     if (!isNaN(seconds) && seconds >= 0 && seconds <= 99) {
       setAntidelaySeconds(seconds);
@@ -66,12 +76,16 @@ export const useAntidelayManager = (
       
       // Reschedule notifications with new antidelay
       if (savedSignals.length > 0) {
+        console.log('🎛️ Rescheduling notifications with new antidelay:', seconds);
         scheduleAllSignalNotifications(savedSignals);
       }
+    } else {
+      console.log('🎛️ Invalid antidelay value:', antidelayInput);
     }
   };
 
   const handleAntidelayCancel = () => {
+    console.log('🎛️ Antidelay dialog cancelled');
     setShowAntidelayDialog(false);
     setAntidelayInput('');
   };
