@@ -22,9 +22,10 @@ export const useAudioInstances = (customRingtone: string | null) => {
     console.log('✅ AudioInstances: All audio instances cleared');
   }, []);
 
-  // Clear audio instances when ringtone changes
+  // Clear audio instances when ringtone changes - this is crucial for MP3 switching
   useEffect(() => {
     console.log('🔄 AudioInstances: Ringtone changed, clearing cached instances');
+    console.log('🎵 AudioInstances: New ringtone URL:', customRingtone?.substring(0, 50) + '...');
     clearAllAudioInstances();
   }, [customRingtone, clearAllAudioInstances]);
 
