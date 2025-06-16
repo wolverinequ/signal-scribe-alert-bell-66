@@ -20,11 +20,29 @@ export const useLogCapture = () => {
     const originalWarn = console.warn;
     const originalError = console.error;
 
+    const isRelevantLog = (message: string): boolean => {
+      const keywords = [
+        '🎵', '🔔', '🔊', '🎯', '🔇', '❌', '✅', '⚠️',
+        'AudioManager', 'RingManager', 'AudioUtils',
+        'ringtone', 'audio', 'blob', 'MP3', 'customRingtone',
+        'isRingtoneLoaded', 'triggerRing', 'monitoring',
+        'error', 'failed', 'Error', 'undefined', 'null'
+      ];
+      
+      return keywords.some(keyword => message.toLowerCase().includes(keyword.toLowerCase()));
+    };
+
     const captureLog = (level: LogEntry['level'], args: any[]) => {
-      const timestamp = new Date().toLocaleTimeString();
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ');
+      
+      // Only capture relevant logs
+      if (!isRelevantLog(message)) {
+        return;
+      }
+      
+      const timestamp = new Date().toLocaleTimeString();
       
       const logEntry: LogEntry = {
         id: `log-${logIdRef.current++}`,
@@ -34,7 +52,7 @@ export const useLogCapture = () => {
         args
       };
 
-      setLogs(prevLogs => [...prevLogs.slice(-99), logEntry]); // Keep last 100 logs
+      setLogs(prevLogs => [...prevLogs.slice(-49), logEntry]); // Keep last 50 relevant logs
     };
 
     // Override console methods
