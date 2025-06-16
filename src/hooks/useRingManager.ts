@@ -25,7 +25,7 @@ export const useRingManager = (
 
   // Helper function to create unique signal identifier
   const getSignalId = (signal: Signal): string => {
-    return `${signal.timestamp}-${signal.index || 0}`;
+    return `${signal.timestamp}-${signal.timeframe}-${signal.asset}-${signal.direction}`;
   };
 
   // Helper function to clear tracking after timeout
