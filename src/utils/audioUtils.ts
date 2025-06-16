@@ -37,20 +37,11 @@ const isValidAudioSource = (source: string): boolean => {
   if (source.startsWith('data:audio/')) {
     return source.includes('base64,') && source.split(',')[1]?.length > 0;
   }
-  // Check for blob URL format (backward compatibility)
+  // Check for blob URL format
   if (source.startsWith('blob:')) {
     return true;
   }
   return false;
-};
-
-const clearInvalidRingtone = () => {
-  try {
-    localStorage.removeItem('custom_ringtone_data');
-    console.log('🎵 AudioUtils: Cleared invalid ringtone from storage');
-  } catch (error) {
-    console.error('🎵 AudioUtils: Error clearing invalid ringtone:', error);
-  }
 };
 
 export const playCustomRingtone = (customRingtone: string | null, audioContextsRef?: React.MutableRefObject<AudioContext[]>): Promise<HTMLAudioElement | null> => {
@@ -62,7 +53,7 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
   
   return new Promise((resolve, reject) => {
     if (customRingtone && isValidAudioSource(customRingtone)) {
-      console.log('🎵 AudioUtils: Attempting to play custom ringtone');
+      console.log('🎵 AudioUtils: Attempting to play custom ringtone from IndexedDB');
       
       const audio = new Audio();
       audio.loop = true; // Loop the ringtone
@@ -90,11 +81,12 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
           networkState: audio.networkState
         });
         
-        // Clear invalid ringtone from storage
-        clearInvalidRingtone();
+        // Fall back to default beep on error
+        createBeepAudio(audioContextsRef);
+        resolve(null);
       });
       
-      // Set the audio source
+      // Set the audio source (blob URL from IndexedDB)
       audio.src = customRingtone;
       
       audio.play().then(() => {
@@ -104,17 +96,13 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
         console.error('🎵 AudioUtils: Error playing custom ringtone:', err);
         console.log('🎵 AudioUtils: Falling back to default beep');
         
-        // Clear invalid ringtone from storage
-        clearInvalidRingtone();
-        
         // Fallback to default beep
         createBeepAudio(audioContextsRef);
         resolve(null);
       });
     } else {
       if (customRingtone) {
-        console.warn('🎵 AudioUtils: Invalid audio source provided, clearing and falling back to beep');
-        clearInvalidRingtone();
+        console.warn('🎵 AudioUtils: Invalid audio source provided, falling back to beep');
       } else {
         console.log('🎵 AudioUtils: No custom ringtone provided, playing default beep');
       }

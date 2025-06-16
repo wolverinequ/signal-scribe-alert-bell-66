@@ -1,12 +1,30 @@
 
 import { useEffect, useRef } from 'react';
+import { indexedDBManager } from '@/utils/indexedDBUtils';
 
 export const useAudioManager = (setCustomRingtone: (url: string | null) => void) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const currentBlobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    console.log('🎵 AudioManager: Initializing file input');
+    console.log('🎵 AudioManager: Initializing file input and IndexedDB');
+    
+    // Initialize IndexedDB and load existing ringtone
+    const initializeAudio = async () => {
+      try {
+        await indexedDBManager.init();
+        const existingRingtone = await indexedDBManager.getRingtone();
+        if (existingRingtone) {
+          setCustomRingtone(existingRingtone);
+          currentBlobUrlRef.current = existingRingtone;
+          console.log('🎵 AudioManager: Existing ringtone loaded from IndexedDB');
+        }
+      } catch (error) {
+        console.error('🎵 AudioManager: Failed to initialize IndexedDB:', error);
+      }
+    };
+    
+    initializeAudio();
     
     // Create hidden file input for ringtone selection
     const fileInput = document.createElement('input');
@@ -27,22 +45,7 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
         console.log('🎵 AudioManager: File input cleaned up');
       }
     };
-  }, []);
-
-  const convertFileToDataURL = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result);
-        } else {
-          reject(new Error('Failed to convert file to data URL'));
-        }
-      };
-      reader.onerror = () => reject(new Error('File reading failed'));
-      reader.readAsDataURL(file);
-    });
-  };
+  }, [setCustomRingtone]);
 
   const handleRingtoneSelect = async (event: Event) => {
     const target = event.target as HTMLInputElement;
@@ -62,17 +65,24 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
           currentBlobUrlRef.current = null;
         }
 
-        // Convert file to base64 data URL for persistent storage
-        const dataURL = await convertFileToDataURL(file);
-        setCustomRingtone(dataURL);
+        // Save file to IndexedDB and get blob URL
+        await indexedDBManager.saveRingtone(file);
+        const blobUrl = await indexedDBManager.getRingtone();
         
-        console.log('🎵 AudioManager: Custom ringtone set as data URL:', {
-          fileName: file.name,
-          dataURLLength: dataURL.length,
-          mimeType: dataURL.split(',')[0]
-        });
+        if (blobUrl) {
+          setCustomRingtone(blobUrl);
+          currentBlobUrlRef.current = blobUrl;
+          
+          console.log('🎵 AudioManager: Custom ringtone saved to IndexedDB and set:', {
+            fileName: file.name,
+            fileSize: file.size,
+            blobUrl: blobUrl.substring(0, 50) + '...'
+          });
+        } else {
+          throw new Error('Failed to create blob URL from saved data');
+        }
       } catch (error) {
-        console.error('🎵 AudioManager: Error converting file to data URL:', error);
+        console.error('🎵 AudioManager: Error saving ringtone to IndexedDB:', error);
         setCustomRingtone(null);
       }
     } else {
