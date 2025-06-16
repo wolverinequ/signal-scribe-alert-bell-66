@@ -1,64 +1,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-const RINGTONE_STORAGE_KEY = 'selected_custom_ringtone_data';
-const RINGTONE_NAME_KEY = 'selected_custom_ringtone_name';
-
 export const useAudioManager = () => {
   const [customRingtone, setCustomRingtone] = useState<string | null>(null);
   const [isRingtoneLoaded, setIsRingtoneLoaded] = useState(false);
+  const [ringtoneFileName, setRingtoneFileName] = useState<string | null>(null);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const loadingRef = useRef(false);
-
-  // Load from storage when starting
-  useEffect(() => {
-    if (loadingRef.current) {
-      console.log('🎵 AudioManager: Loading already in progress, skipping...');
-      return;
-    }
-
-    loadingRef.current = true;
-    console.log('🎵 AudioManager: ===== STARTING INITIAL LOAD FROM STORAGE =====');
-    
-    const storedData = localStorage.getItem(RINGTONE_STORAGE_KEY);
-    const storedName = localStorage.getItem(RINGTONE_NAME_KEY);
-    
-    console.log('🎵 AudioManager: Storage check - hasData:', !!storedData, 'hasName:', !!storedName);
-    
-    if (storedData && storedName) {
-      try {
-        console.log('🎵 AudioManager: Converting stored data to blob URL...');
-        console.log('🎵 AudioManager: Stored name:', storedName);
-        console.log('🎵 AudioManager: Stored data length:', storedData.length);
-        
-        const byteCharacters = atob(storedData);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'audio/mpeg' });
-        const url = URL.createObjectURL(blob);
-        
-        console.log('🎵 AudioManager: Generated blob URL:', url);
-        setCustomRingtone(url);
-        setIsRingtoneLoaded(true);
-        console.log('✅ AudioManager: Initial ringtone loaded successfully from storage');
-        console.log('🎵 AudioManager: Current state - customRingtone:', url, 'isRingtoneLoaded:', true);
-      } catch (error) {
-        console.error('❌ AudioManager: Failed to load stored ringtone:', error);
-        setIsRingtoneLoaded(false);
-        setCustomRingtone(null);
-      }
-    } else {
-      console.log('🔍 AudioManager: No stored ringtone found in localStorage');
-      setIsRingtoneLoaded(false);
-      setCustomRingtone(null);
-    }
-
-    loadingRef.current = false;
-    console.log('🎵 AudioManager: ===== INITIAL LOAD COMPLETE =====');
-  }, []);
+  const currentBlobUrlRef = useRef<string | null>(null);
 
   // Initialize hidden file input once
   useEffect(() => {
@@ -82,13 +31,28 @@ export const useAudioManager = () => {
       if (fileInputRef.current && document.body.contains(fileInputRef.current)) {
         document.body.removeChild(fileInputRef.current);
       }
+      // Clean up blob URL on unmount
+      if (currentBlobUrlRef.current) {
+        URL.revokeObjectURL(currentBlobUrlRef.current);
+      }
     };
   }, []);
+
+  const cleanupPreviousBlobUrl = () => {
+    if (currentBlobUrlRef.current) {
+      console.log('🧹 AudioManager: Revoking previous blob URL:', currentBlobUrlRef.current);
+      URL.revokeObjectURL(currentBlobUrlRef.current);
+      currentBlobUrlRef.current = null;
+    }
+  };
 
   const handleRingtoneSelect = async (event: Event) => {
     console.log('🎵 AudioManager: ===== NEW FILE SELECTION STARTED =====');
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
+
+    // Clear any previous errors
+    setLoadingError(null);
 
     if (file) {
       try {
@@ -97,48 +61,30 @@ export const useAudioManager = () => {
         console.log('🎵 AudioManager: File size:', file.size, 'bytes');
         console.log('🎵 AudioManager: File type:', file.type);
         
-        // Clean up previous blob URL if it exists
-        if (customRingtone) {
-          console.log('🧹 AudioManager: Revoking previous blob URL:', customRingtone);
-          URL.revokeObjectURL(customRingtone);
-        }
+        // Clean up previous blob URL
+        cleanupPreviousBlobUrl();
         
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          console.log('🎵 AudioManager: FileReader onload triggered');
-          const result = e.target?.result as string;
-          const base64Data = result.split(',')[1];
-          
-          console.log('🎵 AudioManager: Base64 data length:', base64Data.length);
-          console.log('🎵 AudioManager: Saving to localStorage...');
-          
-          // Save to storage
-          localStorage.setItem(RINGTONE_STORAGE_KEY, base64Data);
-          localStorage.setItem(RINGTONE_NAME_KEY, file.name);
-          
-          console.log('✅ AudioManager: Data saved to localStorage');
-          
-          // Create new blob URL and update state immediately
-          const url = URL.createObjectURL(file);
-          console.log('🎵 AudioManager: New blob URL created:', url);
-          console.log('🎵 AudioManager: About to update state...');
-          console.log('🎵 AudioManager: Previous customRingtone:', customRingtone);
-          console.log('🎵 AudioManager: New customRingtone will be:', url);
-          
-          setCustomRingtone(url);
-          setIsRingtoneLoaded(true);
-          
-          console.log('✅ AudioManager: State updated - new MP3 ringtone loaded and stored');
-          console.log('🎵 AudioManager: Final state - customRingtone:', url, 'isRingtoneLoaded:', true);
-          console.log('🎵 AudioManager: ===== NEW FILE SELECTION COMPLETE =====');
-        };
+        // Create new blob URL directly from file
+        const blobUrl = URL.createObjectURL(file);
+        console.log('🎵 AudioManager: New blob URL created:', blobUrl);
         
-        console.log('🎵 AudioManager: Starting FileReader.readAsDataURL...');
-        reader.readAsDataURL(file);
+        // Store the blob URL reference for cleanup
+        currentBlobUrlRef.current = blobUrl;
+        
+        // Update state immediately
+        setCustomRingtone(blobUrl);
+        setIsRingtoneLoaded(true);
+        setRingtoneFileName(file.name);
+        
+        console.log('✅ AudioManager: MP3 ringtone loaded successfully');
+        console.log('🎵 AudioManager: Final state - customRingtone:', blobUrl, 'isRingtoneLoaded:', true);
+        console.log('🎵 AudioManager: ===== NEW FILE SELECTION COMPLETE =====');
       } catch (error) {
         console.error('❌ AudioManager: Failed to process ringtone file:', error);
+        setLoadingError('Failed to load MP3 file. Please try again.');
         setIsRingtoneLoaded(false);
         setCustomRingtone(null);
+        setRingtoneFileName(null);
       }
     } else {
       console.log('⚠️ AudioManager: No file selected');
@@ -150,18 +96,31 @@ export const useAudioManager = () => {
     console.log('🎵 AudioManager: Current customRingtone before selection:', customRingtone);
     console.log('🎵 AudioManager: Current isRingtoneLoaded before selection:', isRingtoneLoaded);
     
+    // Clear any previous errors
+    setLoadingError(null);
+    
     if (fileInputRef.current) {
       console.log('🎵 AudioManager: Clearing file input value and triggering click');
       fileInputRef.current.value = '';
       fileInputRef.current.click();
     } else {
       console.error('❌ AudioManager: File input ref is null!');
+      setLoadingError('File selection is not available. Please refresh the page.');
     }
   };
 
   const changeRingtone = () => {
     console.log('🎵 AudioManager: changeRingtone called - delegating to triggerRingtoneSelection');
     triggerRingtoneSelection();
+  };
+
+  const clearRingtone = () => {
+    console.log('🎵 AudioManager: Clearing current ringtone');
+    cleanupPreviousBlobUrl();
+    setCustomRingtone(null);
+    setIsRingtoneLoaded(false);
+    setRingtoneFileName(null);
+    setLoadingError(null);
   };
 
   // Log state changes
@@ -176,8 +135,11 @@ export const useAudioManager = () => {
   return {
     customRingtone,
     isRingtoneLoaded,
+    ringtoneFileName,
+    loadingError,
     triggerRingtoneSelection,
     changeRingtone,
+    clearRingtone,
     setCustomRingtone
   };
 };

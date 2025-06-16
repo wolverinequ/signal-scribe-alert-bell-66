@@ -28,6 +28,8 @@ const Index = () => {
     setRingtoneDialogOpen,
     handleSelectCustomSound,
     handleSelectDefaultSound,
+    ringtoneFileName,
+    loadingError,
   } = useSignalTracker();
 
   return (
@@ -59,6 +61,8 @@ const Index = () => {
         onSelectCustom={handleSelectCustomSound}
         onSelectDefault={handleSelectDefaultSound}
         onClose={() => setRingtoneDialogOpen(false)}
+        currentFileName={ringtoneFileName}
+        loadingError={loadingError}
       />
     </div>
   );
