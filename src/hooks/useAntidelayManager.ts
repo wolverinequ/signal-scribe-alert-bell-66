@@ -12,7 +12,8 @@ export const useAntidelayManager = (
   const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
   const [antidelayInput, setAntidelayInput] = useState('');
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
-  
+  const [ringtoneDialogOpen, setRingtoneDialogOpen] = useState(false);
+
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
   const { triggerRingtoneSelection } = useAudioManager();
@@ -23,7 +24,7 @@ export const useAntidelayManager = (
     e.stopPropagation();
     setSetRingButtonPressed(true);
     isLongPressRef.current = false;
-    
+
     longPressTimerRef.current = setTimeout(() => {
       isLongPressRef.current = true;
       // Long press detected - show antidelay dialog
@@ -36,13 +37,13 @@ export const useAntidelayManager = (
     e.preventDefault();
     e.stopPropagation();
     setSetRingButtonPressed(false);
-    
+
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-    
-    // If it wasn't a long press and dialog is not showing, trigger ringtone selection
+
+    // If it wasn't a long press and dialog isn't showing, trigger ringtone selection
     if (!isLongPressRef.current && !showAntidelayDialog) {
       triggerRingtoneSelection();
     }
@@ -56,6 +57,11 @@ export const useAntidelayManager = (
     }
   };
 
+  // Ringtone select dialog handlers
+  const handleSelectCustomSound = () => {
+    triggerRingtoneSelection();
+  };
+
   // Antidelay dialog handlers
   const handleAntidelaySubmit = () => {
     const seconds = parseInt(antidelayInput);
@@ -63,7 +69,7 @@ export const useAntidelayManager = (
       setAntidelaySeconds(seconds);
       setShowAntidelayDialog(false);
       setAntidelayInput('');
-      
+
       // Reschedule notifications with new antidelay
       if (savedSignals.length > 0) {
         scheduleAllSignalNotifications(savedSignals);
@@ -85,6 +91,10 @@ export const useAntidelayManager = (
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
-    handleAntidelayCancel
+    handleAntidelayCancel,
+    ringtoneDialogOpen,
+    setRingtoneDialogOpen,
+    handleSelectCustomSound,
+    handleSelectDefaultSound: () => {}, // Empty function since we don't support default sounds
   };
 };

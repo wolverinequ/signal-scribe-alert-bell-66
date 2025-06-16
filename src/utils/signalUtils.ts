@@ -7,17 +7,27 @@ export const parseSignals = (text: string): Signal[] => {
   
   lines.forEach(line => {
     const parts = line.split(';');
-    if (parts.length === 4) {
+    if (parts.length >= 3) { // At least need timestamp
       const [timeframe, asset, timestamp, direction] = parts;
-      if (timestamp.match(/^\d{2}:\d{2}$/)) {
+      if (timestamp && timestamp.trim().match(/^\d{2}:\d{2}$/)) {
         signals.push({
-          timeframe: timeframe.trim(),
-          asset: asset.trim(),
+          timeframe: (timeframe || '').trim(),
+          asset: (asset || '').trim(),
           timestamp: timestamp.trim(),
-          direction: direction.trim(),
+          direction: (direction || '').trim(),
           triggered: false
         });
+        console.log('📝 Parsed signal:', {
+          timeframe: (timeframe || '').trim(),
+          asset: (asset || '').trim(),
+          timestamp: timestamp.trim(),
+          direction: (direction || '').trim()
+        });
+      } else {
+        console.log('❌ Invalid timestamp format:', timestamp);
       }
+    } else {
+      console.log('❌ Invalid signal format (need at least 3 parts):', line);
     }
   });
   
@@ -47,6 +57,21 @@ export const checkSignalTime = (signal: Signal, antidelaySeconds: number = 0): b
   const timeMatches = currentHours === targetHours && 
                      currentMinutes === targetMinutes && 
                      currentSeconds === targetSeconds;
+  
+  const currentTimeStr = `${currentHours.toString().padStart(2, '0')}:${currentMinutes.toString().padStart(2, '0')}:${currentSeconds.toString().padStart(2, '0')}`;
+  const targetTimeStr = `${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`;
+  
+  if (timeMatches) {
+    console.log(`⏰ TIME MATCH! Signal ${signal.asset || 'NO_ASSET'} at ${signal.timestamp} should trigger now`);
+    console.log(`📅 Current: ${currentTimeStr}, Target: ${targetTimeStr}, Triggered: ${signal.triggered}`);
+    console.log(`🔍 Signal details:`, {
+      timeframe: signal.timeframe || 'EMPTY',
+      asset: signal.asset || 'EMPTY', 
+      timestamp: signal.timestamp,
+      direction: signal.direction || 'EMPTY',
+      triggered: signal.triggered
+    });
+  }
   
   return timeMatches && !signal.triggered;
 };

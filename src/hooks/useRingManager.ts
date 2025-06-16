@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Signal } from '@/types/signal';
 import { checkSignalTime } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
@@ -15,61 +15,142 @@ export const useRingManager = (
   const [currentRingingSignal, setCurrentRingingSignal] = useState<Signal | null>(null);
   const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const [ringOffButtonPressed, setRingOffButtonPressed] = useState(false);
-  
+  const [alreadyRangIds, setAlreadyRangIds] = useState<Set<string>>(new Set());
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
-  const audioContextsRef = useRef<AudioContext[]>([]);
-  const { customRingtone } = useAudioManager();
+  const { customRingtone, isRingtoneLoaded } = useAudioManager();
+  const monitoringActiveRef = useRef(false);
+  const lastSignalsRef = useRef<Signal[]>([]);
+  const lastAntidelayRef = useRef<number>(0);
 
-  // Ring notification
-  const triggerRing = async (signal: Signal) => {
+  // Helper: construct unique signal ID
+  const getSignalId = useCallback((signal: Signal): string => {
+    return `${signal.asset || 'NO_ASSET'}-${signal.direction || 'NO_DIRECTION'}-${signal.timestamp}`;
+  }, []);
+
+  // Ring notification - only if MP3 is loaded
+  const triggerRing = useCallback(async (signal: Signal) => {
+    console.log('🔔 Attempting to trigger ring for signal:', signal);
+
+    if (!isRingtoneLoaded || !customRingtone) {
+      console.log('❌ Cannot ring - no MP3 file loaded');
+      return;
+    }
+
+    console.log('✅ Starting ring sequence...');
     setIsRinging(true);
     setCurrentRingingSignal(signal);
-    
-    // Wake up screen if supported
+
     const lock = await requestWakeLock();
     setWakeLock(lock);
 
-    // Wake up screen on mobile by trying to focus the window
     if (document.hidden) {
-      window.focus();
+      try {
+        window.focus();
+      } catch (e) {
+        console.log('⚠️ Could not focus window:', e);
+      }
     }
 
-    // Play custom ringtone or default beep and track audio instances
-    const audio = await playCustomRingtone(customRingtone, audioContextsRef);
-    if (audio instanceof HTMLAudioElement) {
-      audioInstancesRef.current.push(audio);
+    try {
+      console.log('🎵 Playing custom ringtone...');
+      const audio = await playCustomRingtone(customRingtone);
+      if (audio instanceof HTMLAudioElement) {
+        audioInstancesRef.current.push(audio);
+      }
+
+      onSignalTriggered(signal);
+      const signalId = getSignalId(signal);
+      setAlreadyRangIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(signalId);
+        return newSet;
+      });
+      
+      console.log('✅ Signal marked as triggered:', signalId);
+    } catch (error) {
+      console.error('❌ Failed to play ringtone:', error);
+      setIsRinging(false);
+      setCurrentRingingSignal(null);
+      releaseWakeLock(wakeLock);
+      setWakeLock(null);
     }
+  }, [customRingtone, isRingtoneLoaded, onSignalTriggered, getSignalId, wakeLock]);
 
-    // Mark signal as triggered
-    onSignalTriggered(signal);
-  };
+  // Check if monitoring conditions have actually changed
+  const shouldRestartMonitoring = useCallback(() => {
+    const signalsChanged = JSON.stringify(savedSignals) !== JSON.stringify(lastSignalsRef.current);
+    const antidelayChanged = antidelaySeconds !== lastAntidelayRef.current;
+    const hasRequiredConditions = savedSignals.length > 0 && isRingtoneLoaded && customRingtone;
+    
+    return (signalsChanged || antidelayChanged) && hasRequiredConditions;
+  }, [savedSignals, antidelaySeconds, isRingtoneLoaded, customRingtone]);
 
-  // Check signals every second for precise timing
+  // Stable monitoring effect - only restart when actually needed
   useEffect(() => {
-    if (savedSignals.length > 0) {
-      intervalRef.current = setInterval(() => {
-        savedSignals.forEach(signal => {
-          if (checkSignalTime(signal, antidelaySeconds)) {
-            triggerRing(signal);
-          }
-        });
-      }, 1000);
-
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-      };
+    const hasSignals = savedSignals.length > 0;
+    const canMonitor = isRingtoneLoaded && customRingtone;
+    
+    if (!hasSignals || !canMonitor) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        monitoringActiveRef.current = false;
+        console.log('⏹️ Signal monitoring stopped - conditions not met');
+      }
+      return;
     }
-  }, [savedSignals, customRingtone, antidelaySeconds]);
+
+    if (monitoringActiveRef.current && !shouldRestartMonitoring()) {
+      return; // Don't restart if already running and nothing important changed
+    }
+
+    // Stop existing monitoring
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    // Update refs to track current state
+    lastSignalsRef.current = [...savedSignals];
+    lastAntidelayRef.current = antidelaySeconds;
+    monitoringActiveRef.current = true;
+    
+    console.log('🚀 Starting signal monitoring with', savedSignals.length, 'signals');
+    
+    intervalRef.current = setInterval(() => {
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+      
+      savedSignals.forEach(signal => {
+        const signalId = getSignalId(signal);
+        const shouldTrigger = checkSignalTime(signal, antidelaySeconds);
+        const notAlreadyRang = !alreadyRangIds.has(signalId);
+        
+        if (shouldTrigger && notAlreadyRang) {
+          console.log(`🎯 Signal should trigger at ${currentTime}:`, signal);
+          triggerRing(signal);
+        }
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        monitoringActiveRef.current = false;
+      }
+    };
+  }, [savedSignals.length, isRingtoneLoaded, !!customRingtone, shouldRestartMonitoring, triggerRing, getSignalId, alreadyRangIds, antidelaySeconds]);
 
   // Ring off button handler - stops ALL audio immediately
-  const handleRingOff = () => {
+  const handleRingOff = useCallback(() => {
     setRingOffButtonPressed(true);
     setTimeout(() => setRingOffButtonPressed(false), 200);
-    
-    // Stop ALL audio instances immediately
+
+    console.log('🔇 Ring off pressed - stopping', audioInstancesRef.current.length, 'audio instances');
+
     audioInstancesRef.current.forEach(audio => {
       if (audio) {
         audio.pause();
@@ -77,30 +158,14 @@ export const useRingManager = (
       }
     });
     audioInstancesRef.current = [];
-    
-    // Stop ALL Web Audio API contexts
-    audioContextsRef.current.forEach(context => {
-      if (context && context.state !== 'closed') {
-        context.close().catch(err => console.log('Audio context cleanup error:', err));
-      }
-    });
-    audioContextsRef.current = [];
-    
-    // Additional cleanup: Stop any remaining audio elements on the page
-    const allAudioElements = document.querySelectorAll('audio');
-    allAudioElements.forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
-    });
-    
-    // Stop ringing if currently ringing
+
     if (isRinging) {
       setIsRinging(false);
       setCurrentRingingSignal(null);
       releaseWakeLock(wakeLock);
       setWakeLock(null);
     }
-  };
+  }, [isRinging, wakeLock]);
 
   return {
     isRinging,
