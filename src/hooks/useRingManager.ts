@@ -19,6 +19,22 @@ export const useRingManager = (
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const audioContextsRef = useRef<AudioContext[]>([]);
+  
+  // Local tracking to prevent multiple rings for the same signal
+  const recentlyTriggeredRef = useRef<Set<string>>(new Set());
+
+  // Helper function to create unique signal identifier
+  const getSignalId = (signal: Signal): string => {
+    return `${signal.timestamp}-${signal.index || 0}`;
+  };
+
+  // Helper function to clear tracking after timeout
+  const clearTrackingAfterDelay = (signalId: string) => {
+    setTimeout(() => {
+      recentlyTriggeredRef.current.delete(signalId);
+      console.log('🔔 RingManager: Cleared tracking for signal:', signalId);
+    }, 5 * 60 * 1000); // 5 minutes
+  };
 
   // Ring notification
   const triggerRing = async (signal: Signal) => {
@@ -60,8 +76,20 @@ export const useRingManager = (
       intervalRef.current = setInterval(() => {
         // Use the savedSignals prop directly instead of loading from storage
         savedSignals.forEach(signal => {
-          if (checkSignalTime(signal, antidelaySeconds)) {
+          const signalId = getSignalId(signal);
+          
+          // Check if signal time matches and hasn't been recently triggered
+          if (checkSignalTime(signal, antidelaySeconds) && !recentlyTriggeredRef.current.has(signalId)) {
             console.log('🔔 RingManager: Signal time matched, triggering ring:', signal);
+            
+            // Add to local tracking to prevent immediate re-triggering
+            recentlyTriggeredRef.current.add(signalId);
+            console.log('🔔 RingManager: Added signal to local tracking:', signalId);
+            
+            // Clear tracking after delay
+            clearTrackingAfterDelay(signalId);
+            
+            // Trigger the ring
             triggerRing(signal);
           }
         });
