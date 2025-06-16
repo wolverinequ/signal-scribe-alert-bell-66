@@ -7,11 +7,10 @@ const RINGTONE_NAME_KEY = 'selected_custom_ringtone_name';
 export const useAudioManager = () => {
   const [customRingtone, setCustomRingtone] = useState<string | null>(null);
   const [isRingtoneLoaded, setIsRingtoneLoaded] = useState(false);
-  const [showStartupDialog, setShowStartupDialog] = useState(true); // Always show on mount
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const loadingRef = useRef(false);
 
-  // Load from storage when starting - but always show dialog
+  // Load from storage when starting
   useEffect(() => {
     if (loadingRef.current) {
       return;
@@ -37,7 +36,6 @@ export const useAudioManager = () => {
         
         setCustomRingtone(url);
         setIsRingtoneLoaded(true);
-        // Note: We don't hide the dialog here - it will remain visible
         console.log('✅ AudioManager: Ringtone loaded from storage successfully:', storedName);
       } catch (error) {
         console.error('❌ AudioManager: Failed to load stored ringtone:', error);
@@ -94,7 +92,6 @@ export const useAudioManager = () => {
           const url = URL.createObjectURL(file);
           setCustomRingtone(url);
           setIsRingtoneLoaded(true);
-          setShowStartupDialog(false); // Hide dialog after selection
           
           console.log('✅ AudioManager: MP3 ringtone loaded and stored:', file.name);
           console.log('🔄 AudioManager: Audio state updated - customRingtone and isRingtoneLoaded set');
@@ -122,7 +119,6 @@ export const useAudioManager = () => {
   return {
     customRingtone,
     isRingtoneLoaded,
-    showStartupDialog,
     triggerRingtoneSelection,
     changeRingtone,
     setCustomRingtone

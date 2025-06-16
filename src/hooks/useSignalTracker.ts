@@ -8,7 +8,6 @@ import {
 import { useSignalState } from './useSignalState';
 import { useRingManager } from './useRingManager';
 import { useAntidelayManager } from './useAntidelayManager';
-import { useAudioManager } from './useAudioManager';
 
 export const useSignalTracker = () => {
   const {
@@ -42,12 +41,6 @@ export const useSignalTracker = () => {
     handleSelectCustomSound,
     handleSelectDefaultSound,
   } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds);
-
-  const {
-    showStartupDialog,
-    triggerRingtoneSelection,
-    changeRingtone
-  } = useAudioManager();
 
   // Start background task when app loads and signals exist
   useEffect(() => {
@@ -87,10 +80,7 @@ export const useSignalTracker = () => {
     handleAntidelayCancel,
     ringtoneDialogOpen,
     setRingtoneDialogOpen,
-    handleSelectCustomSound: changeRingtone,
+    handleSelectCustomSound,
     handleSelectDefaultSound,
-    // Startup dialog props
-    showStartupDialog,
-    handleStartupFileSelect: triggerRingtoneSelection,
   };
 };
