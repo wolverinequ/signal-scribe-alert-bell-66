@@ -57,6 +57,7 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
       
       const audio = new Audio();
       audio.loop = true; // Loop the ringtone
+      audio.preload = 'auto';
       
       // Add event listeners for debugging and error handling
       audio.addEventListener('loadstart', () => {
@@ -67,6 +68,17 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
         console.log('🎵 AudioUtils: Custom audio can play');
       });
       
+      audio.addEventListener('canplaythrough', () => {
+        console.log('🎵 AudioUtils: Custom audio can play through');
+      });
+      
+      audio.addEventListener('loadedmetadata', () => {
+        console.log('🎵 AudioUtils: Custom audio metadata loaded:', {
+          duration: audio.duration,
+          readyState: audio.readyState
+        });
+      });
+      
       audio.addEventListener('playing', () => {
         console.log('🎵 AudioUtils: Custom audio is playing');
       });
@@ -74,20 +86,38 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
       audio.addEventListener('error', (e) => {
         console.error('🎵 AudioUtils: Custom audio error event:', e);
         const audioTarget = e.target as HTMLAudioElement;
+        const error = audioTarget?.error;
+        
         console.error('🎵 AudioUtils: Audio error details:', {
-          error: audioTarget?.error,
+          error: error,
+          code: error?.code,
+          message: error?.message,
           src: audio.src,
           readyState: audio.readyState,
-          networkState: audio.networkState
+          networkState: audio.networkState,
+          currentTime: audio.currentTime
         });
         
+        // Map error codes to descriptions
+        const errorMessages: { [key: number]: string } = {
+          1: 'MEDIA_ERR_ABORTED - playback aborted',
+          2: 'MEDIA_ERR_NETWORK - network error',
+          3: 'MEDIA_ERR_DECODE - decoding error',
+          4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - source not supported'
+        };
+        
+        const errorMsg = error?.code ? errorMessages[error.code] || `Unknown error code: ${error.code}` : 'Unknown error';
+        console.error('🎵 AudioUtils: Error description:', errorMsg);
+        
         // Fall back to default beep on error
+        console.log('🎵 AudioUtils: Falling back to default beep due to error');
         createBeepAudio(audioContextsRef);
         resolve(null);
       });
       
       // Set the audio source (blob URL from IndexedDB)
       audio.src = customRingtone;
+      audio.load(); // Explicitly load the audio
       
       audio.play().then(() => {
         console.log('🎵 AudioUtils: Custom ringtone playback started successfully');

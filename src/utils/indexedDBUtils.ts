@@ -1,4 +1,3 @@
-
 const DB_NAME = 'SignalTrackerDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'ringtones';
@@ -10,6 +9,97 @@ interface RingtoneData {
   audioData: ArrayBuffer;
   createdAt: number;
 }
+
+// Supported audio formats
+const SUPPORTED_AUDIO_FORMATS = [
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/ogg',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/aac',
+  'audio/webm'
+];
+
+const validateAudioFormat = (file: File): boolean => {
+  console.log('🗄️ IndexedDB: Validating audio format:', file.type);
+  
+  // Check MIME type
+  if (SUPPORTED_AUDIO_FORMATS.includes(file.type)) {
+    return true;
+  }
+  
+  // Fallback: check file extension
+  const extension = file.name.toLowerCase().split('.').pop();
+  const extensionToMime: { [key: string]: string } = {
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'ogg': 'audio/ogg',
+    'mp4': 'audio/mp4',
+    'm4a': 'audio/x-m4a',
+    'aac': 'audio/aac',
+    'webm': 'audio/webm'
+  };
+  
+  if (extension && extensionToMime[extension]) {
+    console.log('🗄️ IndexedDB: Audio format validated by extension:', extension);
+    return true;
+  }
+  
+  console.warn('🗄️ IndexedDB: Unsupported audio format:', file.type, 'Extension:', extension);
+  return false;
+};
+
+const testAudioPlayback = async (blobUrl: string): Promise<boolean> => {
+  return new Promise((resolve) => {
+    const audio = new Audio();
+    let resolved = false;
+    
+    const cleanup = () => {
+      if (!resolved) {
+        resolved = true;
+        audio.removeEventListener('canplay', onCanPlay);
+        audio.removeEventListener('error', onError);
+        audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      }
+    };
+    
+    const onCanPlay = () => {
+      console.log('🗄️ IndexedDB: Audio test passed - can play');
+      cleanup();
+      resolve(true);
+    };
+    
+    const onLoadedMetadata = () => {
+      console.log('🗄️ IndexedDB: Audio metadata loaded successfully');
+      cleanup();
+      resolve(true);
+    };
+    
+    const onError = (e: Event) => {
+      console.error('🗄️ IndexedDB: Audio test failed:', e);
+      cleanup();
+      resolve(false);
+    };
+    
+    audio.addEventListener('canplay', onCanPlay);
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('error', onError);
+    
+    // Set a timeout to avoid hanging
+    setTimeout(() => {
+      if (!resolved) {
+        console.warn('🗄️ IndexedDB: Audio test timeout');
+        cleanup();
+        resolve(false);
+      }
+    }, 5000);
+    
+    audio.src = blobUrl;
+    audio.load();
+  });
+};
 
 export class IndexedDBManager {
   private db: IDBDatabase | null = null;
@@ -46,36 +136,65 @@ export class IndexedDBManager {
       await this.init();
     }
 
+    // Validate audio format first
+    if (!validateAudioFormat(file)) {
+      throw new Error(`Unsupported audio format: ${file.type}. Please use MP3, WAV, OGG, MP4, M4A, AAC, or WebM files.`);
+    }
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       
-      reader.onload = () => {
-        const audioData = reader.result as ArrayBuffer;
-        const ringtoneData: RingtoneData = {
-          id: 'current_ringtone',
-          fileName: file.name,
-          fileType: file.type,
-          audioData,
-          createdAt: Date.now()
-        };
-
-        const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.put(ringtoneData);
-
-        request.onsuccess = () => {
-          console.log('🗄️ IndexedDB: Ringtone saved successfully:', {
+      reader.onload = async () => {
+        try {
+          const audioData = reader.result as ArrayBuffer;
+          
+          // Ensure we have a valid MIME type
+          let fileType = file.type;
+          if (!fileType || fileType === '') {
+            // Try to infer from extension
+            const extension = file.name.toLowerCase().split('.').pop();
+            const extensionToMime: { [key: string]: string } = {
+              'mp3': 'audio/mpeg',
+              'wav': 'audio/wav',
+              'ogg': 'audio/ogg',
+              'mp4': 'audio/mp4',
+              'm4a': 'audio/x-m4a',
+              'aac': 'audio/aac',
+              'webm': 'audio/webm'
+            };
+            fileType = extension ? (extensionToMime[extension] || 'audio/mpeg') : 'audio/mpeg';
+            console.log('🗄️ IndexedDB: Inferred MIME type:', fileType, 'from extension:', extension);
+          }
+          
+          const ringtoneData: RingtoneData = {
+            id: 'current_ringtone',
             fileName: file.name,
-            size: audioData.byteLength,
-            type: file.type
-          });
-          resolve(ringtoneData.id);
-        };
+            fileType,
+            audioData,
+            createdAt: Date.now()
+          };
 
-        request.onerror = () => {
-          console.error('🗄️ IndexedDB: Failed to save ringtone:', request.error);
-          reject(request.error);
-        };
+          const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
+          const store = transaction.objectStore(STORE_NAME);
+          const request = store.put(ringtoneData);
+
+          request.onsuccess = () => {
+            console.log('🗄️ IndexedDB: Ringtone saved successfully:', {
+              fileName: file.name,
+              size: audioData.byteLength,
+              type: fileType
+            });
+            resolve(ringtoneData.id);
+          };
+
+          request.onerror = () => {
+            console.error('🗄️ IndexedDB: Failed to save ringtone:', request.error);
+            reject(request.error);
+          };
+        } catch (error) {
+          console.error('🗄️ IndexedDB: Error processing file:', error);
+          reject(error);
+        }
       };
 
       reader.onerror = () => {
@@ -97,19 +216,39 @@ export class IndexedDBManager {
       const store = transaction.objectStore(STORE_NAME);
       const request = store.get('current_ringtone');
 
-      request.onsuccess = () => {
+      request.onsuccess = async () => {
         if (request.result) {
-          const ringtoneData: RingtoneData = request.result;
-          const blob = new Blob([ringtoneData.audioData], { type: ringtoneData.fileType });
-          const url = URL.createObjectURL(blob);
-          
-          console.log('🗄️ IndexedDB: Ringtone retrieved successfully:', {
-            fileName: ringtoneData.fileName,
-            size: ringtoneData.audioData.byteLength,
-            type: ringtoneData.fileType
-          });
-          
-          resolve(url);
+          try {
+            const ringtoneData: RingtoneData = request.result;
+            
+            console.log('🗄️ IndexedDB: Creating blob with type:', ringtoneData.fileType);
+            const blob = new Blob([ringtoneData.audioData], { type: ringtoneData.fileType });
+            const url = URL.createObjectURL(blob);
+            
+            console.log('🗄️ IndexedDB: Blob created:', {
+              fileName: ringtoneData.fileName,
+              size: ringtoneData.audioData.byteLength,
+              type: ringtoneData.fileType,
+              blobSize: blob.size,
+              blobType: blob.type,
+              url: url.substring(0, 50) + '...'
+            });
+            
+            // Test if the audio can be played
+            const canPlay = await testAudioPlayback(url);
+            if (!canPlay) {
+              console.warn('🗄️ IndexedDB: Audio playback test failed, cleaning up URL');
+              URL.revokeObjectURL(url);
+              resolve(null);
+              return;
+            }
+            
+            console.log('🗄️ IndexedDB: Ringtone retrieved and validated successfully');
+            resolve(url);
+          } catch (error) {
+            console.error('🗄️ IndexedDB: Error creating blob URL:', error);
+            resolve(null);
+          }
         } else {
           console.log('🗄️ IndexedDB: No ringtone found');
           resolve(null);

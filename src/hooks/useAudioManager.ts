@@ -73,20 +73,33 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
           setCustomRingtone(blobUrl);
           currentBlobUrlRef.current = blobUrl;
           
-          console.log('🎵 AudioManager: Custom ringtone saved to IndexedDB and set:', {
+          console.log('🎵 AudioManager: Custom ringtone saved to IndexedDB and validated:', {
             fileName: file.name,
             fileSize: file.size,
             blobUrl: blobUrl.substring(0, 50) + '...'
           });
         } else {
-          throw new Error('Failed to create blob URL from saved data');
+          throw new Error('Failed to create or validate blob URL from saved data');
         }
       } catch (error) {
-        console.error('🎵 AudioManager: Error saving ringtone to IndexedDB:', error);
+        console.error('🎵 AudioManager: Error with ringtone:', error);
+        
+        // Show user-friendly error message
+        if (error instanceof Error && error.message.includes('Unsupported audio format')) {
+          alert(`Error: ${error.message}`);
+        } else {
+          alert('Error: Failed to save ringtone. Please try a different audio file (MP3, WAV, OGG, MP4, M4A, AAC, or WebM).');
+        }
+        
         setCustomRingtone(null);
       }
     } else {
       console.log('🎵 AudioManager: No file selected');
+    }
+    
+    // Reset the file input to allow selecting the same file again
+    if (target) {
+      target.value = '';
     }
   };
 
