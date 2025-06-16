@@ -1,22 +1,12 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
-const CUSTOM_RINGTONE_KEY = 'custom_ringtone_url';
-
-export const useAudioManager = () => {
-  const [customRingtone, setCustomRingtone] = useState<string | null>(null);
+export const useAudioManager = (setCustomRingtone: (url: string | null) => void) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    // Load saved custom ringtone from localStorage
-    const savedRingtone = localStorage.getItem(CUSTOM_RINGTONE_KEY);
-    if (savedRingtone) {
-      setCustomRingtone(savedRingtone);
-      console.log('🎵 Loaded custom ringtone from storage:', savedRingtone);
-    } else {
-      console.log('🎵 No custom ringtone found in storage');
-    }
-
+    console.log('🎵 AudioManager: Initializing file input');
+    
     // Create hidden file input for ringtone selection
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -29,6 +19,7 @@ export const useAudioManager = () => {
     return () => {
       if (fileInputRef.current && document.body.contains(fileInputRef.current)) {
         document.body.removeChild(fileInputRef.current);
+        console.log('🎵 AudioManager: File input cleaned up');
       }
     };
   }, []);
@@ -38,7 +29,7 @@ export const useAudioManager = () => {
     const file = target.files?.[0];
     
     if (file) {
-      console.log('🎵 File selected:', {
+      console.log('🎵 AudioManager: File selected:', {
         name: file.name,
         size: file.size,
         type: file.type
@@ -47,30 +38,25 @@ export const useAudioManager = () => {
       const url = URL.createObjectURL(file);
       setCustomRingtone(url);
       
-      // Save to localStorage
-      localStorage.setItem(CUSTOM_RINGTONE_KEY, url);
-      
-      console.log('🎵 Custom ringtone set and saved:', {
+      console.log('🎵 AudioManager: Custom ringtone set via centralized state:', {
         fileName: file.name,
-        url: url,
-        savedToStorage: true
+        url: url
       });
     } else {
-      console.log('🎵 No file selected');
+      console.log('🎵 AudioManager: No file selected');
     }
   };
 
   const triggerRingtoneSelection = () => {
-    console.log('🎵 Triggering ringtone selection dialog');
+    console.log('🎵 AudioManager: Triggering ringtone selection dialog');
     if (fileInputRef.current) {
       fileInputRef.current.click();
     } else {
-      console.error('🎵 File input ref is null');
+      console.error('🎵 AudioManager: File input ref is null');
     }
   };
 
   return {
-    customRingtone,
     triggerRingtoneSelection
   };
 };

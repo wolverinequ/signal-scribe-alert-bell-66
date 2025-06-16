@@ -8,6 +8,7 @@ import {
 import { useSignalState } from './useSignalState';
 import { useRingManager } from './useRingManager';
 import { useAntidelayManager } from './useAntidelayManager';
+import { useAudioManager } from './useAudioManager';
 
 export const useSignalTracker = () => {
   const {
@@ -17,14 +18,20 @@ export const useSignalTracker = () => {
     antidelaySeconds,
     setAntidelaySeconds,
     saveButtonPressed,
+    customRingtone,
+    setCustomRingtone,
     handleSaveSignals,
     updateSignalTriggered
   } = useSignalState();
 
+  console.log('🎯 SignalTracker: Current custom ringtone state:', customRingtone);
+
+  const { triggerRingtoneSelection } = useAudioManager(setCustomRingtone);
+
   const {
     ringOffButtonPressed,
     handleRingOff
-  } = useRingManager(savedSignals, antidelaySeconds, updateSignalTriggered);
+  } = useRingManager(savedSignals, antidelaySeconds, customRingtone, updateSignalTriggered);
 
   const {
     showAntidelayDialog,
@@ -36,11 +43,12 @@ export const useSignalTracker = () => {
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
     handleAntidelayCancel
-  } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds);
+  } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds, triggerRingtoneSelection);
 
   // Start background task when app loads and signals exist
   useEffect(() => {
     if (savedSignals.length > 0) {
+      console.log('🎯 SignalTracker: Starting background task for', savedSignals.length, 'signals');
       startBackgroundTask();
       scheduleAllSignalNotifications(savedSignals);
       
@@ -53,9 +61,15 @@ export const useSignalTracker = () => {
     }
 
     return () => {
+      console.log('🎯 SignalTracker: Stopping background task');
       stopBackgroundTask();
     };
   }, [savedSignals]);
+
+  // Log custom ringtone changes for debugging
+  useEffect(() => {
+    console.log('🎯 SignalTracker: Custom ringtone changed to:', customRingtone);
+  }, [customRingtone]);
 
   return {
     signalsText,
