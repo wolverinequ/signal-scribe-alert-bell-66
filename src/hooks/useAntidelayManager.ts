@@ -7,11 +7,9 @@ export const useAntidelayManager = (
   savedSignals: Signal[],
   antidelaySeconds: number,
   setAntidelaySeconds: (seconds: number) => void,
-  triggerRingtoneSelection: () => void,
-  useDefaultSound: () => void
+  triggerRingtoneSelection: () => void
 ) => {
   const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
-  const [showRingSelectionDialog, setShowRingSelectionDialog] = useState(false);
   const [antidelayInput, setAntidelayInput] = useState('');
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
   
@@ -50,10 +48,10 @@ export const useAntidelayManager = (
       longPressTimerRef.current = null;
     }
     
-    // If it wasn't a long press and dialog is not showing, show ring selection dialog
+    // If it wasn't a long press and dialog is not showing, trigger ringtone selection
     if (!isLongPressRef.current && !showAntidelayDialog) {
-      console.log('🎛️ AntidelayManager: Short press detected - showing ring selection dialog');
-      setShowRingSelectionDialog(true);
+      console.log('🎛️ AntidelayManager: Short press detected - triggering ringtone selection');
+      triggerRingtoneSelection();
     }
   };
 
@@ -64,22 +62,6 @@ export const useAntidelayManager = (
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-  };
-
-  // Ring selection dialog handlers
-  const handleRingSelectionClose = () => {
-    console.log('🎛️ AntidelayManager: Ring selection dialog closed');
-    setShowRingSelectionDialog(false);
-  };
-
-  const handleUseDefaultSound = () => {
-    console.log('🎛️ AntidelayManager: Use default sound selected');
-    useDefaultSound();
-  };
-
-  const handleSetCustomSound = () => {
-    console.log('🎛️ AntidelayManager: Set custom sound selected');
-    triggerRingtoneSelection();
   };
 
   // Antidelay dialog handlers
@@ -109,16 +91,12 @@ export const useAntidelayManager = (
 
   return {
     showAntidelayDialog,
-    showRingSelectionDialog,
     antidelayInput,
     setAntidelayInput,
     setRingButtonPressed,
     handleSetRingMouseDown,
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
-    handleRingSelectionClose,
-    handleUseDefaultSound,
-    handleSetCustomSound,
     handleAntidelaySubmit,
     handleAntidelayCancel
   };

@@ -112,29 +112,7 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
     }
   };
 
-  const useDefaultSound = async () => {
-    console.log('🎵 AudioManager: Setting to use default sound');
-    try {
-      // Clear custom ringtone from IndexedDB
-      await indexedDBManager.clearRingtone();
-      
-      // Revoke current blob URL if it exists
-      if (currentBlobUrlRef.current) {
-        URL.revokeObjectURL(currentBlobUrlRef.current);
-        currentBlobUrlRef.current = null;
-      }
-      
-      // Set custom ringtone to null to use default beep
-      setCustomRingtone(null);
-      
-      console.log('🎵 AudioManager: Default sound selected, custom ringtone cleared');
-    } catch (error) {
-      console.error('🎵 AudioManager: Error clearing custom ringtone:', error);
-    }
-  };
-
   return {
-    triggerRingtoneSelection,
-    useDefaultSound
+    triggerRingtoneSelection
   };
 };

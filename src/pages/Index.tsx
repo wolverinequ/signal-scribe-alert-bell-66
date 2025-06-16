@@ -4,7 +4,6 @@ import { useSignalTracker } from '@/hooks/useSignalTracker';
 import SignalInput from '@/components/SignalInput';
 import ControlPanel from '@/components/ControlPanel';
 import AntidelayDialog from '@/components/AntidelayDialog';
-import RingSelectionDialog from '@/components/RingSelectionDialog';
 
 const Index = () => {
   const {
@@ -14,7 +13,6 @@ const Index = () => {
     ringOffButtonPressed,
     setRingButtonPressed,
     showAntidelayDialog,
-    showRingSelectionDialog,
     antidelayInput,
     setAntidelayInput,
     antidelaySeconds,
@@ -23,9 +21,6 @@ const Index = () => {
     handleSetRingMouseDown,
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
-    handleRingSelectionClose,
-    handleUseDefaultSound,
-    handleSetCustomSound,
     handleAntidelaySubmit,
     handleAntidelayCancel
   } = useSignalTracker();
@@ -55,13 +50,6 @@ const Index = () => {
         onChange={setAntidelayInput}
         onSubmit={handleAntidelaySubmit}
         onCancel={handleAntidelayCancel}
-      />
-
-      <RingSelectionDialog
-        open={showRingSelectionDialog}
-        onClose={handleRingSelectionClose}
-        onUseDefault={handleUseDefaultSound}
-        onSetCustom={handleSetCustomSound}
       />
     </div>
   );
