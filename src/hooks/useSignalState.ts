@@ -10,7 +10,25 @@ import {
 } from '@/utils/signalStorage';
 import { scheduleAllSignalNotifications } from '@/utils/backgroundTaskManager';
 
-const CUSTOM_RINGTONE_KEY = 'custom_ringtone_url';
+const CUSTOM_RINGTONE_KEY = 'custom_ringtone_data';
+
+const isValidDataURL = (dataURL: string): boolean => {
+  try {
+    // Check if it's a valid data URL format
+    const isDataURL = dataURL.startsWith('data:audio/') && dataURL.includes('base64,');
+    if (!isDataURL) return false;
+    
+    // Try to decode the base64 part to ensure it's valid
+    const base64Part = dataURL.split(',')[1];
+    if (!base64Part) return false;
+    
+    // Basic base64 validation
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    return base64Regex.test(base64Part);
+  } catch {
+    return false;
+  }
+};
 
 export const useSignalState = () => {
   const [signalsText, setSignalsText] = useState('');
@@ -34,8 +52,15 @@ export const useSignalState = () => {
     console.log('📊 Loaded antidelay from storage:', loadedAntidelay);
 
     if (savedRingtone) {
-      setCustomRingtone(savedRingtone);
-      console.log('📊 Loaded custom ringtone from storage:', savedRingtone);
+      // Validate stored ringtone data
+      if (isValidDataURL(savedRingtone)) {
+        setCustomRingtone(savedRingtone);
+        console.log('📊 Loaded valid custom ringtone from storage');
+      } else {
+        console.warn('📊 Invalid ringtone data found, clearing storage');
+        localStorage.removeItem(CUSTOM_RINGTONE_KEY);
+        setCustomRingtone(null);
+      }
     } else {
       console.log('📊 No custom ringtone found in storage');
     }
@@ -46,11 +71,26 @@ export const useSignalState = () => {
     saveAntidelayToStorage(antidelaySeconds);
   }, [antidelaySeconds]);
 
-  // Save custom ringtone changes to storage
+  // Save custom ringtone changes to storage with validation
   useEffect(() => {
     if (customRingtone) {
-      localStorage.setItem(CUSTOM_RINGTONE_KEY, customRingtone);
-      console.log('📊 Custom ringtone saved to storage:', customRingtone);
+      if (isValidDataURL(customRingtone)) {
+        try {
+          localStorage.setItem(CUSTOM_RINGTONE_KEY, customRingtone);
+          console.log('📊 Custom ringtone saved to storage successfully');
+        } catch (error) {
+          console.error('📊 Failed to save ringtone to storage:', error);
+          // If storage fails (e.g., quota exceeded), clear the ringtone
+          setCustomRingtone(null);
+        }
+      } else {
+        console.warn('📊 Invalid ringtone data, not saving to storage');
+        setCustomRingtone(null);
+      }
+    } else {
+      // Clear from storage when set to null
+      localStorage.removeItem(CUSTOM_RINGTONE_KEY);
+      console.log('📊 Custom ringtone cleared from storage');
     }
   }, [customRingtone]);
 

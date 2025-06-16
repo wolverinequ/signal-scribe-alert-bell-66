@@ -32,21 +32,42 @@ export const createBeepAudio = (audioContextsRef?: React.MutableRefObject<AudioC
   }
 };
 
+const isValidAudioSource = (source: string): boolean => {
+  // Check for data URL format
+  if (source.startsWith('data:audio/')) {
+    return source.includes('base64,') && source.split(',')[1]?.length > 0;
+  }
+  // Check for blob URL format (backward compatibility)
+  if (source.startsWith('blob:')) {
+    return true;
+  }
+  return false;
+};
+
+const clearInvalidRingtone = () => {
+  try {
+    localStorage.removeItem('custom_ringtone_data');
+    console.log('🎵 AudioUtils: Cleared invalid ringtone from storage');
+  } catch (error) {
+    console.error('🎵 AudioUtils: Error clearing invalid ringtone:', error);
+  }
+};
+
 export const playCustomRingtone = (customRingtone: string | null, audioContextsRef?: React.MutableRefObject<AudioContext[]>): Promise<HTMLAudioElement | null> => {
   console.log('🎵 AudioUtils: playCustomRingtone called with:', {
-    customRingtone,
+    customRingtone: customRingtone ? `${customRingtone.substring(0, 50)}...` : null,
     hasCustomRingtone: !!customRingtone,
-    ringtoneType: customRingtone ? 'custom' : 'default'
+    ringtoneType: customRingtone ? (customRingtone.startsWith('data:') ? 'data-url' : 'blob-url') : 'none'
   });
   
   return new Promise((resolve, reject) => {
-    if (customRingtone) {
-      console.log('🎵 AudioUtils: Attempting to play custom ringtone:', customRingtone);
+    if (customRingtone && isValidAudioSource(customRingtone)) {
+      console.log('🎵 AudioUtils: Attempting to play custom ringtone');
       
-      const audio = new Audio(customRingtone);
+      const audio = new Audio();
       audio.loop = true; // Loop the ringtone
       
-      // Add event listeners for debugging
+      // Add event listeners for debugging and error handling
       audio.addEventListener('loadstart', () => {
         console.log('🎵 AudioUtils: Custom audio load started');
       });
@@ -68,7 +89,13 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
           readyState: audio.readyState,
           networkState: audio.networkState
         });
+        
+        // Clear invalid ringtone from storage
+        clearInvalidRingtone();
       });
+      
+      // Set the audio source
+      audio.src = customRingtone;
       
       audio.play().then(() => {
         console.log('🎵 AudioUtils: Custom ringtone playback started successfully');
@@ -76,12 +103,22 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
       }).catch(err => {
         console.error('🎵 AudioUtils: Error playing custom ringtone:', err);
         console.log('🎵 AudioUtils: Falling back to default beep');
+        
+        // Clear invalid ringtone from storage
+        clearInvalidRingtone();
+        
         // Fallback to default beep
         createBeepAudio(audioContextsRef);
         resolve(null);
       });
     } else {
-      console.log('🎵 AudioUtils: No custom ringtone provided, playing default beep');
+      if (customRingtone) {
+        console.warn('🎵 AudioUtils: Invalid audio source provided, clearing and falling back to beep');
+        clearInvalidRingtone();
+      } else {
+        console.log('🎵 AudioUtils: No custom ringtone provided, playing default beep');
+      }
+      
       // Play default beep
       createBeepAudio(audioContextsRef);
       resolve(null);
