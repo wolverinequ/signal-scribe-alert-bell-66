@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Signal } from '@/types/signal';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { useAudioManager } from './useAudioManager';
@@ -18,10 +18,20 @@ export const useRingManager = (
   const { isRinging, currentRingingSignal, startRinging, stopRinging } = useRingingState();
   const { addAudioInstance, clearAllAudioInstances } = useAudioInstances(customRingtone);
 
-  // Ring notification - only if MP3 is loaded
+  // Clear all audio instances immediately when customRingtone changes - CRUCIAL fix
+  useEffect(() => {
+    if (customRingtone) {
+      console.log('🔄 RingManager: New MP3 detected, clearing all audio instances');
+      console.log('🎵 RingManager: New audio URL:', customRingtone.substring(0, 50) + '...');
+      clearAllAudioInstances();
+    }
+  }, [customRingtone, clearAllAudioInstances]);
+
+  // Ring notification - recreated every time customRingtone changes to avoid closure issues
   const triggerRing = useCallback(async (signal: Signal) => {
     console.log('🔔 RingManager: Attempting to trigger ring for signal:', signal);
     console.log('🎵 RingManager: Current audio state - isRingtoneLoaded:', isRingtoneLoaded, 'customRingtone available:', !!customRingtone);
+    console.log('🎵 RingManager: Using audio URL:', customRingtone?.substring(0, 50) + '...');
 
     if (!isRingtoneLoaded || !customRingtone) {
       console.log('❌ RingManager: Cannot ring - no MP3 file loaded');
@@ -45,15 +55,15 @@ export const useRingManager = (
       console.error('❌ RingManager: Failed to play ringtone:', error);
       stopRinging();
     }
-  }, [customRingtone, isRingtoneLoaded, startRinging, addAudioInstance, onSignalTriggered, stopRinging]);
+  }, [customRingtone, isRingtoneLoaded, startRinging, addAudioInstance, onSignalTriggered, stopRinging]); // Key fix: include customRingtone in deps
 
-  // Use signal monitoring hook - remove the redundant markSignalAsTriggered call
+  // Use signal monitoring hook
   const { markSignalAsTriggered } = useSignalMonitoring(
     savedSignals,
     antidelaySeconds,
     isRingtoneLoaded,
     customRingtone,
-    triggerRing // This will handle both triggering and marking as triggered
+    triggerRing
   );
 
   // Ring off button handler - stops ALL audio immediately
