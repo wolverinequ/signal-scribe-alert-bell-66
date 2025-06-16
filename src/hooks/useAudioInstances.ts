@@ -12,32 +12,43 @@ export const useAudioInstances = (customRingtone: string | null) => {
   }, []);
 
   const clearAllAudioInstances = useCallback(() => {
-    console.log('🧹 AudioInstances: Clearing', audioInstancesRef.current.length, 'audio instances');
+    console.log('🧹 AudioInstances: FORCE CLEARING', audioInstancesRef.current.length, 'audio instances');
     audioInstancesRef.current.forEach((audio, index) => {
       if (audio) {
-        console.log(`🔇 AudioInstances: Stopping audio instance ${index + 1} with URL:`, audio.src?.substring(0, 50) + '...');
-        audio.pause();
-        audio.currentTime = 0;
-        audio.src = '';
-        audio.load(); // Force cleanup
+        console.log(`🔇 AudioInstances: FORCE STOPPING audio instance ${index + 1} with URL:`, audio.src?.substring(0, 50) + '...');
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+          // Force disconnect from source
+          audio.removeAttribute('src');
+          audio.load();
+          // Additional cleanup
+          audio.volume = 0;
+        } catch (error) {
+          console.log('⚠️ AudioInstances: Error stopping audio:', error);
+        }
       }
     });
     audioInstancesRef.current = [];
-    console.log('✅ AudioInstances: All audio instances cleared and cleaned up');
+    console.log('✅ AudioInstances: ALL AUDIO FORCEFULLY STOPPED AND CLEARED');
   }, []);
 
-  // Clear audio instances when ringtone changes - this is crucial for MP3 switching
+  // IMMEDIATELY clear ALL audio when ringtone changes - this is the key fix
   useEffect(() => {
-    if (customRingtone && customRingtone !== lastRingtoneRef.current) {
-      console.log('🔄 AudioInstances: Ringtone changed, clearing cached instances');
-      console.log('🆚 AudioInstances: Old URL:', lastRingtoneRef.current?.substring(0, 50) + '...');
-      console.log('🆚 AudioInstances: New URL:', customRingtone?.substring(0, 50) + '...');
+    console.log('🔄 AudioInstances: Checking ringtone change...');
+    console.log('🆚 AudioInstances: Current ringtone:', customRingtone?.substring(0, 50) + '...');
+    console.log('🆚 AudioInstances: Last ringtone:', lastRingtoneRef.current?.substring(0, 50) + '...');
+    
+    if (customRingtone !== lastRingtoneRef.current) {
+      console.log('🚨 AudioInstances: RINGTONE CHANGED - FORCE CLEARING ALL AUDIO');
       
-      // Clear all existing audio instances immediately
+      // IMMEDIATE force clear - no delays
       clearAllAudioInstances();
+      
+      // Update reference AFTER clearing
       lastRingtoneRef.current = customRingtone;
       
-      console.log('✅ AudioInstances: Audio instances cleared for new MP3');
+      console.log('✅ AudioInstances: Ringtone reference updated to:', customRingtone?.substring(0, 50) + '...');
     }
   }, [customRingtone, clearAllAudioInstances]);
 

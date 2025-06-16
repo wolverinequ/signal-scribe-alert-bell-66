@@ -13,7 +13,7 @@ export const useSignalMonitoring = (
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [alreadyRangIds, setAlreadyRangIds] = useState<Set<string>>(new Set());
   const lastCustomRingtoneRef = useRef<string | null>(null);
-  const monitoringKeyRef = useRef<string>(''); // Force restart key
+  const forceRestartRef = useRef<number>(0);
 
   // Helper: construct unique signal ID
   const getSignalId = useCallback((signal: Signal): string => {
@@ -30,46 +30,49 @@ export const useSignalMonitoring = (
     console.log('✅ SignalMonitoring: Signal marked as triggered:', signalId);
   }, [getSignalId]);
 
-  // Reset triggered signals when customRingtone changes (new MP3 selected)
+  // FORCE restart monitoring when customRingtone changes
   useEffect(() => {
-    if (customRingtone && customRingtone !== lastCustomRingtoneRef.current) {
-      console.log('🔄 SignalMonitoring: New MP3 detected, clearing triggered signals');
-      console.log('🆚 SignalMonitoring: Old URL:', lastCustomRingtoneRef.current?.substring(0, 50) + '...');
-      console.log('🆚 SignalMonitoring: New URL:', customRingtone.substring(0, 50) + '...');
+    console.log('🔄 SignalMonitoring: Checking ringtone change...');
+    console.log('🆚 SignalMonitoring: Current URL:', customRingtone?.substring(0, 50) + '...');
+    console.log('🆚 SignalMonitoring: Last URL:', lastCustomRingtoneRef.current?.substring(0, 50) + '...');
+    
+    if (customRingtone !== lastCustomRingtoneRef.current) {
+      console.log('🚨 SignalMonitoring: NEW MP3 DETECTED - FORCE RESTARTING MONITORING');
       
-      // Force complete restart by changing the monitoring key
-      monitoringKeyRef.current = `${Date.now()}-${Math.random()}`;
+      // FORCE complete restart
+      forceRestartRef.current = Date.now();
       setAlreadyRangIds(new Set());
       lastCustomRingtoneRef.current = customRingtone;
-      console.log('✅ SignalMonitoring: Triggered signals reset for new MP3');
-      console.log('🔄 SignalMonitoring: Monitoring key updated to force restart:', monitoringKeyRef.current);
+      
+      console.log('✅ SignalMonitoring: Monitoring will restart with new MP3');
+      console.log('🔄 SignalMonitoring: Force restart key:', forceRestartRef.current);
     }
   }, [customRingtone]);
 
-  // Stabilize the callback to prevent infinite re-renders
+  // Create stable callback that ALWAYS uses current customRingtone
   const stableOnSignalShouldTrigger = useCallback((signal: Signal) => {
-    console.log('🎯 SignalMonitoring: Triggering signal:', signal);
-    console.log('🎵 SignalMonitoring: Current ringtone URL:', customRingtone?.substring(0, 50) + '...');
+    console.log('🎯 SignalMonitoring: TRIGGERING signal:', signal);
+    console.log('🎵 SignalMonitoring: Using CURRENT ringtone URL:', customRingtone?.substring(0, 50) + '...');
     onSignalShouldTrigger(signal);
     markSignalAsTriggered(signal);
-  }, [onSignalShouldTrigger, markSignalAsTriggered, customRingtone]); // Include customRingtone to ensure fresh closure
+  }, [onSignalShouldTrigger, markSignalAsTriggered, customRingtone]);
 
-  // Signal monitoring effect - restart completely when customRingtone changes
+  // Main monitoring effect - FORCE restart when ringtone changes
   useEffect(() => {
     const hasSignals = savedSignals.length > 0;
     const canMonitor = isRingtoneLoaded && customRingtone;
     
-    console.log('🔍 SignalMonitoring: Monitoring setup check:');
+    console.log('🔍 SignalMonitoring: FORCE RESTART CHECK:');
     console.log('  - Has signals:', hasSignals);
     console.log('  - Can monitor:', canMonitor);
+    console.log('  - Force restart key:', forceRestartRef.current);
     console.log('  - Current audio URL:', customRingtone?.substring(0, 50) + '...');
-    console.log('  - Monitoring key:', monitoringKeyRef.current);
     
-    // Stop existing monitoring first - CRUCIAL for restart
+    // ALWAYS stop existing monitoring first
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
-      console.log('⏹️ SignalMonitoring: Stopped previous monitoring');
+      console.log('⏹️ SignalMonitoring: FORCE STOPPED previous monitoring');
     }
 
     if (!hasSignals || !canMonitor) {
@@ -77,8 +80,8 @@ export const useSignalMonitoring = (
       return;
     }
 
-    console.log('🚀 SignalMonitoring: Starting fresh signal monitoring with', savedSignals.length, 'signals');
-    console.log('🎵 SignalMonitoring: Using audio URL:', customRingtone.substring(0, 50) + '...');
+    console.log('🚀 SignalMonitoring: FORCE STARTING fresh monitoring');
+    console.log('🎵 SignalMonitoring: Will use audio URL:', customRingtone.substring(0, 50) + '...');
     
     intervalRef.current = setInterval(() => {
       const now = new Date();
@@ -88,17 +91,16 @@ export const useSignalMonitoring = (
         const signalId = getSignalId(signal);
         const shouldTrigger = checkSignalTime(signal, antidelaySeconds);
         
-        // Check against current alreadyRangIds state
         setAlreadyRangIds(current => {
           const notAlreadyRang = !current.has(signalId);
           
           if (shouldTrigger && notAlreadyRang) {
-            console.log(`🎯 SignalMonitoring: Signal should trigger at ${currentTime}:`, signal);
-            console.log(`🎵 SignalMonitoring: Will use audio URL:`, customRingtone?.substring(0, 50) + '...');
+            console.log(`🎯 SignalMonitoring: Signal SHOULD TRIGGER at ${currentTime}:`, signal);
+            console.log(`🎵 SignalMonitoring: Will use CURRENT audio URL:`, customRingtone?.substring(0, 50) + '...');
             stableOnSignalShouldTrigger(signal);
           }
           
-          return current; // Don't modify state here
+          return current;
         });
       });
     }, 1000);
@@ -107,10 +109,10 @@ export const useSignalMonitoring = (
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
-        console.log('🧹 SignalMonitoring: Monitoring cleanup complete');
+        console.log('🧹 SignalMonitoring: Cleanup complete');
       }
     };
-  }, [savedSignals, antidelaySeconds, isRingtoneLoaded, customRingtone, stableOnSignalShouldTrigger, getSignalId, monitoringKeyRef.current]); // Include monitoring key to force restart
+  }, [savedSignals, antidelaySeconds, isRingtoneLoaded, customRingtone, stableOnSignalShouldTrigger, getSignalId, forceRestartRef.current]);
 
   return {
     markSignalAsTriggered
