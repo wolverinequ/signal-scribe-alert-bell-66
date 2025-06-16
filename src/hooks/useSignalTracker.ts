@@ -26,7 +26,7 @@ export const useSignalTracker = () => {
 
   console.log('🎯 SignalTracker: Current custom ringtone state:', customRingtone);
 
-  const { triggerRingtoneSelection } = useAudioManager(setCustomRingtone);
+  const { triggerRingtoneSelection, useDefaultSound } = useAudioManager(setCustomRingtone);
 
   const {
     ringOffButtonPressed,
@@ -35,15 +35,19 @@ export const useSignalTracker = () => {
 
   const {
     showAntidelayDialog,
+    showRingSelectionDialog,
     antidelayInput,
     setAntidelayInput,
     setRingButtonPressed,
     handleSetRingMouseDown,
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
+    handleRingSelectionClose,
+    handleUseDefaultSound,
+    handleSetCustomSound,
     handleAntidelaySubmit,
     handleAntidelayCancel
-  } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds, triggerRingtoneSelection);
+  } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds, triggerRingtoneSelection, useDefaultSound);
 
   // Start background task when app loads and signals exist
   useEffect(() => {
@@ -78,6 +82,7 @@ export const useSignalTracker = () => {
     ringOffButtonPressed,
     setRingButtonPressed,
     showAntidelayDialog,
+    showRingSelectionDialog,
     antidelayInput,
     setAntidelayInput,
     antidelaySeconds,
@@ -86,6 +91,9 @@ export const useSignalTracker = () => {
     handleSetRingMouseDown,
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
+    handleRingSelectionClose,
+    handleUseDefaultSound,
+    handleSetCustomSound,
     handleAntidelaySubmit,
     handleAntidelayCancel
   };

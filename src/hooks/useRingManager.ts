@@ -19,14 +19,43 @@ export const useRingManager = (
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const audioContextsRef = useRef<AudioContext[]>([]);
+  
+  // Track recently triggered signals to prevent multiple rings
+  const recentlyTriggeredRef = useRef<Set<string>>(new Set());
+  const triggerTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Create unique key for signal to track triggers
+  const getSignalKey = (signal: Signal): string => {
+    return `${signal.timestamp}-${signal.asset}-${signal.direction}`;
+  };
 
   // Ring notification
   const triggerRing = async (signal: Signal) => {
+    const signalKey = getSignalKey(signal);
+    
+    // Check if this signal was recently triggered
+    if (recentlyTriggeredRef.current.has(signalKey)) {
+      console.log('🔔 RingManager: Signal recently triggered, skipping:', signalKey);
+      return;
+    }
+
     console.log('🔔 RingManager: Triggering ring for signal:', {
       signal,
       customRingtoneUrl: customRingtone,
       hasCustomRingtone: !!customRingtone
     });
+    
+    // Mark as recently triggered
+    recentlyTriggeredRef.current.add(signalKey);
+    
+    // Set timeout to remove from recently triggered (5 minutes)
+    const timeoutId = setTimeout(() => {
+      recentlyTriggeredRef.current.delete(signalKey);
+      triggerTimeoutsRef.current.delete(signalKey);
+      console.log('🔔 RingManager: Signal removed from recently triggered:', signalKey);
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    triggerTimeoutsRef.current.set(signalKey, timeoutId);
     
     setIsRinging(true);
     setCurrentRingingSignal(signal);
@@ -75,6 +104,18 @@ export const useRingManager = (
       };
     }
   }, [savedSignals, customRingtone, antidelaySeconds]);
+
+  // Cleanup function to clear all timeouts
+  useEffect(() => {
+    return () => {
+      // Clear all trigger timeouts on unmount
+      triggerTimeoutsRef.current.forEach((timeoutId) => {
+        clearTimeout(timeoutId);
+      });
+      triggerTimeoutsRef.current.clear();
+      recentlyTriggeredRef.current.clear();
+    };
+  }, []);
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = () => {
