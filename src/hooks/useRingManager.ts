@@ -23,6 +23,7 @@ export const useRingManager = (
   const monitoringActiveRef = useRef(false);
   const lastSignalsRef = useRef<Signal[]>([]);
   const lastAntidelayRef = useRef<number>(0);
+  const lastCustomRingtoneRef = useRef<string | null>(null);
 
   // Helper: construct unique signal ID
   const getSignalId = useCallback((signal: Signal): string => {
@@ -32,6 +33,7 @@ export const useRingManager = (
   // Ring notification - only if MP3 is loaded
   const triggerRing = useCallback(async (signal: Signal) => {
     console.log('🔔 Attempting to trigger ring for signal:', signal);
+    console.log('🎵 Current audio state - isRingtoneLoaded:', isRingtoneLoaded, 'customRingtone available:', !!customRingtone);
 
     if (!isRingtoneLoaded || !customRingtone) {
       console.log('❌ Cannot ring - no MP3 file loaded');
@@ -54,10 +56,11 @@ export const useRingManager = (
     }
 
     try {
-      console.log('🎵 Playing custom ringtone...');
+      console.log('🎵 Playing custom ringtone with URL:', customRingtone.substring(0, 50) + '...');
       const audio = await playCustomRingtone(customRingtone);
       if (audio instanceof HTMLAudioElement) {
         audioInstancesRef.current.push(audio);
+        console.log('🔊 Audio instance added to tracking, total instances:', audioInstancesRef.current.length);
       }
 
       onSignalTriggered(signal);
@@ -82,15 +85,22 @@ export const useRingManager = (
   const shouldRestartMonitoring = useCallback(() => {
     const signalsChanged = JSON.stringify(savedSignals) !== JSON.stringify(lastSignalsRef.current);
     const antidelayChanged = antidelaySeconds !== lastAntidelayRef.current;
+    const audioChanged = customRingtone !== lastCustomRingtoneRef.current;
     const hasRequiredConditions = savedSignals.length > 0 && isRingtoneLoaded && customRingtone;
     
-    return (signalsChanged || antidelayChanged) && hasRequiredConditions;
+    if (audioChanged) {
+      console.log('🔄 Audio changed detected - old:', lastCustomRingtoneRef.current?.substring(0, 50), 'new:', customRingtone?.substring(0, 50));
+    }
+    
+    return (signalsChanged || antidelayChanged || audioChanged) && hasRequiredConditions;
   }, [savedSignals, antidelaySeconds, isRingtoneLoaded, customRingtone]);
 
   // Stable monitoring effect - only restart when actually needed
   useEffect(() => {
     const hasSignals = savedSignals.length > 0;
     const canMonitor = isRingtoneLoaded && customRingtone;
+    
+    console.log('🔍 Monitoring conditions check - hasSignals:', hasSignals, 'canMonitor:', canMonitor, 'isRingtoneLoaded:', isRingtoneLoaded, 'customRingtone available:', !!customRingtone);
     
     if (!hasSignals || !canMonitor) {
       if (intervalRef.current) {
@@ -115,9 +125,10 @@ export const useRingManager = (
     // Update refs to track current state
     lastSignalsRef.current = [...savedSignals];
     lastAntidelayRef.current = antidelaySeconds;
+    lastCustomRingtoneRef.current = customRingtone;
     monitoringActiveRef.current = true;
     
-    console.log('🚀 Starting signal monitoring with', savedSignals.length, 'signals');
+    console.log('🚀 Starting signal monitoring with', savedSignals.length, 'signals and updated audio');
     
     intervalRef.current = setInterval(() => {
       const now = new Date();

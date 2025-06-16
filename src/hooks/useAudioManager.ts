@@ -7,19 +7,17 @@ const RINGTONE_NAME_KEY = 'selected_custom_ringtone_name';
 export const useAudioManager = () => {
   const [customRingtone, setCustomRingtone] = useState<string | null>(null);
   const [isRingtoneLoaded, setIsRingtoneLoaded] = useState(false);
-  const [showStartupDialog, setShowStartupDialog] = useState(false);
+  const [showStartupDialog, setShowStartupDialog] = useState(true); // Always show on mount
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const loadingRef = useRef(false);
-  const initializedRef = useRef(false);
 
-  // Load from storage when starting - ONLY ONCE
+  // Load from storage when starting - but always show dialog
   useEffect(() => {
-    if (loadingRef.current || initializedRef.current) {
+    if (loadingRef.current) {
       return;
     }
 
     loadingRef.current = true;
-    initializedRef.current = true;
     console.log('🎵 AudioManager: Loading ringtone from storage...');
     
     const storedData = localStorage.getItem(RINGTONE_STORAGE_KEY);
@@ -39,19 +37,17 @@ export const useAudioManager = () => {
         
         setCustomRingtone(url);
         setIsRingtoneLoaded(true);
-        setShowStartupDialog(false);
+        // Note: We don't hide the dialog here - it will remain visible
         console.log('✅ AudioManager: Ringtone loaded from storage successfully:', storedName);
       } catch (error) {
         console.error('❌ AudioManager: Failed to load stored ringtone:', error);
         setIsRingtoneLoaded(false);
         setCustomRingtone(null);
-        setShowStartupDialog(true);
       }
     } else {
-      console.log('🔍 AudioManager: No stored ringtone found, showing startup dialog');
+      console.log('🔍 AudioManager: No stored ringtone found');
       setIsRingtoneLoaded(false);
       setCustomRingtone(null);
-      setShowStartupDialog(true);
     }
 
     loadingRef.current = false;
@@ -90,15 +86,18 @@ export const useAudioManager = () => {
           const result = e.target?.result as string;
           const base64Data = result.split(',')[1];
           
+          // Save to storage
           localStorage.setItem(RINGTONE_STORAGE_KEY, base64Data);
           localStorage.setItem(RINGTONE_NAME_KEY, file.name);
           
+          // Create new blob URL and update state immediately
           const url = URL.createObjectURL(file);
           setCustomRingtone(url);
           setIsRingtoneLoaded(true);
-          setShowStartupDialog(false);
+          setShowStartupDialog(false); // Hide dialog after selection
           
           console.log('✅ AudioManager: MP3 ringtone loaded and stored:', file.name);
+          console.log('🔄 AudioManager: Audio state updated - customRingtone and isRingtoneLoaded set');
         };
         reader.readAsDataURL(file);
       } catch (error) {
