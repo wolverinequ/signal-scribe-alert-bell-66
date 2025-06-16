@@ -5,26 +5,19 @@ import { loadSignalsFromStorage, loadAntidelayFromStorage } from './signalStorag
 import { checkSignalTime } from './signalUtils';
 
 let backgroundCheckInterval: NodeJS.Timeout | undefined;
-let isBackgroundTaskRunning = false;
 
 export const startBackgroundTask = async () => {
-  if (isBackgroundTaskRunning) {
-    console.log('⚡ BackgroundTask: Already running, skipping start...');
-    return;
-  }
-
   try {
     // Request notification permissions first
     const permission = await LocalNotifications.requestPermissions();
-    console.log('🔔 BackgroundTask: Notification permission:', permission);
+    console.log('Notification permission:', permission);
 
     if (permission.display !== 'granted') {
-      console.warn('⚠️ BackgroundTask: Notification permissions not granted');
+      console.warn('Notification permissions not granted');
       return;
     }
 
-    isBackgroundTaskRunning = true;
-    console.log('🚀 BackgroundTask: Started - using interval monitoring');
+    console.log('Background task started - using interval monitoring');
     
     // Start checking signals every second
     backgroundCheckInterval = setInterval(async () => {
@@ -32,8 +25,7 @@ export const startBackgroundTask = async () => {
     }, 1000);
 
   } catch (error) {
-    console.error('❌ BackgroundTask: Failed to start:', error);
-    isBackgroundTaskRunning = false;
+    console.error('Failed to start background task:', error);
   }
 };
 
@@ -41,14 +33,12 @@ export const stopBackgroundTask = () => {
   if (backgroundCheckInterval) {
     clearInterval(backgroundCheckInterval);
     backgroundCheckInterval = undefined;
-    isBackgroundTaskRunning = false;
-    console.log('🛑 BackgroundTask: Stopped');
+    console.log('Background task stopped');
   }
 };
 
 const checkSignalsInBackground = async () => {
   try {
-    // Load signals fresh each time for background checking (not for UI)
     const signals = loadSignalsFromStorage();
     const antidelaySeconds = loadAntidelayFromStorage();
     
@@ -56,26 +46,28 @@ const checkSignalsInBackground = async () => {
       if (checkSignalTime(signal, antidelaySeconds)) {
         await triggerLocalNotification(signal);
         
-        // Mark signal as triggered
+        // Mark signal as triggered and save back to storage
         signal.triggered = true;
+        const updatedSignals = signals.map(s => 
+          s === signal ? { ...s, triggered: true } : s
+        );
+        // Note: We can't import saveSignalsToStorage here due to circular dependency
+        // The signal will be marked as triggered when app returns to foreground
       }
     }
   } catch (error) {
-    console.error('❌ BackgroundTask: Error checking signals:', error);
+    console.error('Error checking signals in background:', error);
   }
 };
 
 const triggerLocalNotification = async (signal: Signal) => {
   try {
-    // Use proper integer ID for notifications
-    const notificationId = Math.floor(Math.random() * 1000000);
-    
     await LocalNotifications.schedule({
       notifications: [
         {
           title: 'Binary Options Signal Alert!',
           body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
-          id: notificationId,
+          id: Date.now(),
           schedule: { at: new Date() },
           sound: 'default',
           attachments: undefined,
@@ -87,9 +79,9 @@ const triggerLocalNotification = async (signal: Signal) => {
       ]
     });
     
-    console.log('📱 BackgroundTask: Local notification scheduled for signal:', signal.timestamp);
+    console.log('Local notification scheduled for signal:', signal);
   } catch (error) {
-    console.error('❌ BackgroundTask: Failed to schedule local notification:', error);
+    console.error('Failed to schedule local notification:', error);
   }
 };
 
@@ -117,7 +109,7 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
           return {
             title: 'Binary Options Signal Alert!',
             body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
-            id: index + 1000, // Use safe integer IDs
+            id: index + 1,
             schedule: { at: notificationTime },
             sound: 'default',
             attachments: undefined,
@@ -135,11 +127,9 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
       await LocalNotifications.schedule({
         notifications: notifications as any[]
       });
-      console.log(`📅 BackgroundTask: Scheduled ${notifications.length} notifications`);
-    } else {
-      console.log('📅 BackgroundTask: No future notifications to schedule');
+      console.log(`Scheduled ${notifications.length} notifications`);
     }
   } catch (error) {
-    console.error('❌ BackgroundTask: Failed to schedule signal notifications:', error);
+    console.error('Failed to schedule signal notifications:', error);
   }
 };
