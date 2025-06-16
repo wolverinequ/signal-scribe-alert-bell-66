@@ -20,33 +20,32 @@ export const useRingManager = (
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const { customRingtone, isRingtoneLoaded } = useAudioManager();
-  const monitoringActiveRef = useRef(false);
-  const lastSignalsRef = useRef<Signal[]>([]);
-  const lastAntidelayRef = useRef<number>(0);
-  const lastCustomRingtoneRef = useRef<string | null>(null);
 
-  // Clear cached audio instances when ringtone changes
+  // Force clear all audio instances when ringtone changes
   useEffect(() => {
-    if (customRingtone !== lastCustomRingtoneRef.current) {
-      console.log('🔄 RingManager: Audio changed, clearing cached instances');
+    console.log('🔄 RingManager: Audio state changed - customRingtone:', customRingtone?.substring(0, 50) + '...', 'isLoaded:', isRingtoneLoaded);
+    
+    // Clear all existing audio instances immediately
+    if (audioInstancesRef.current.length > 0) {
+      console.log('🧹 RingManager: Clearing', audioInstancesRef.current.length, 'cached audio instances');
       audioInstancesRef.current.forEach(audio => {
         if (audio) {
           audio.pause();
           audio.currentTime = 0;
+          audio.src = '';
         }
       });
       audioInstancesRef.current = [];
-      
-      // Stop any current ringing if audio changed
-      if (isRinging) {
-        setIsRinging(false);
-        setCurrentRingingSignal(null);
-        releaseWakeLock(wakeLock);
-        setWakeLock(null);
-      }
-      
-      lastCustomRingtoneRef.current = customRingtone;
-      console.log('✅ RingManager: Audio instances cleared for new ringtone');
+      console.log('✅ RingManager: All audio instances cleared');
+    }
+    
+    // Stop any current ringing when audio changes
+    if (isRinging) {
+      console.log('🔇 RingManager: Stopping current ringing due to audio change');
+      setIsRinging(false);
+      setCurrentRingingSignal(null);
+      releaseWakeLock(wakeLock);
+      setWakeLock(null);
     }
   }, [customRingtone, isRinging, wakeLock]);
 
@@ -57,15 +56,15 @@ export const useRingManager = (
 
   // Ring notification - only if MP3 is loaded
   const triggerRing = useCallback(async (signal: Signal) => {
-    console.log('🔔 Attempting to trigger ring for signal:', signal);
-    console.log('🎵 Current audio state - isRingtoneLoaded:', isRingtoneLoaded, 'customRingtone available:', !!customRingtone);
+    console.log('🔔 RingManager: Attempting to trigger ring for signal:', signal);
+    console.log('🎵 RingManager: Current audio state - isRingtoneLoaded:', isRingtoneLoaded, 'customRingtone available:', !!customRingtone);
 
     if (!isRingtoneLoaded || !customRingtone) {
-      console.log('❌ Cannot ring - no MP3 file loaded');
+      console.log('❌ RingManager: Cannot ring - no MP3 file loaded');
       return;
     }
 
-    console.log('✅ Starting ring sequence...');
+    console.log('✅ RingManager: Starting ring sequence with URL:', customRingtone.substring(0, 50) + '...');
     setIsRinging(true);
     setCurrentRingingSignal(signal);
 
@@ -76,16 +75,16 @@ export const useRingManager = (
       try {
         window.focus();
       } catch (e) {
-        console.log('⚠️ Could not focus window:', e);
+        console.log('⚠️ RingManager: Could not focus window:', e);
       }
     }
 
     try {
-      console.log('🎵 Playing custom ringtone with URL:', customRingtone.substring(0, 50) + '...');
+      console.log('🎵 RingManager: Playing custom ringtone with URL:', customRingtone.substring(0, 50) + '...');
       const audio = await playCustomRingtone(customRingtone);
       if (audio instanceof HTMLAudioElement) {
         audioInstancesRef.current.push(audio);
-        console.log('🔊 Audio instance added to tracking, total instances:', audioInstancesRef.current.length);
+        console.log('🔊 RingManager: Audio instance added to tracking, total instances:', audioInstancesRef.current.length);
       }
 
       onSignalTriggered(signal);
@@ -96,9 +95,9 @@ export const useRingManager = (
         return newSet;
       });
       
-      console.log('✅ Signal marked as triggered:', signalId);
+      console.log('✅ RingManager: Signal marked as triggered:', signalId);
     } catch (error) {
-      console.error('❌ Failed to play ringtone:', error);
+      console.error('❌ RingManager: Failed to play ringtone:', error);
       setIsRinging(false);
       setCurrentRingingSignal(null);
       releaseWakeLock(wakeLock);
@@ -106,54 +105,27 @@ export const useRingManager = (
     }
   }, [customRingtone, isRingtoneLoaded, onSignalTriggered, getSignalId, wakeLock]);
 
-  // Check if monitoring conditions have actually changed
-  const shouldRestartMonitoring = useCallback(() => {
-    const signalsChanged = JSON.stringify(savedSignals) !== JSON.stringify(lastSignalsRef.current);
-    const antidelayChanged = antidelaySeconds !== lastAntidelayRef.current;
-    const audioChanged = customRingtone !== lastCustomRingtoneRef.current;
-    const hasRequiredConditions = savedSignals.length > 0 && isRingtoneLoaded && customRingtone;
-    
-    if (audioChanged) {
-      console.log('🔄 Audio changed detected - old:', lastCustomRingtoneRef.current?.substring(0, 50), 'new:', customRingtone?.substring(0, 50));
-    }
-    
-    return (signalsChanged || antidelayChanged || audioChanged) && hasRequiredConditions;
-  }, [savedSignals, antidelaySeconds, isRingtoneLoaded, customRingtone]);
-
-  // Enhanced monitoring effect with immediate response to audio changes
+  // Simplified monitoring effect - restart immediately on any change
   useEffect(() => {
     const hasSignals = savedSignals.length > 0;
     const canMonitor = isRingtoneLoaded && customRingtone;
     
-    console.log('🔍 Monitoring conditions check - hasSignals:', hasSignals, 'canMonitor:', canMonitor, 'isRingtoneLoaded:', isRingtoneLoaded, 'customRingtone available:', !!customRingtone);
+    console.log('🔍 RingManager: Monitoring check - signals:', hasSignals, 'canMonitor:', canMonitor, 'ringtone:', customRingtone?.substring(0, 50) + '...');
     
-    if (!hasSignals || !canMonitor) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-        monitoringActiveRef.current = false;
-        console.log('⏹️ Signal monitoring stopped - conditions not met');
-      }
-      return;
-    }
-
-    if (monitoringActiveRef.current && !shouldRestartMonitoring()) {
-      return; // Don't restart if already running and nothing important changed
-    }
-
-    // Stop existing monitoring
+    // Stop existing monitoring first
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
+      console.log('⏹️ RingManager: Stopped previous monitoring');
     }
 
-    // Update refs to track current state
-    lastSignalsRef.current = [...savedSignals];
-    lastAntidelayRef.current = antidelaySeconds;
-    lastCustomRingtoneRef.current = customRingtone;
-    monitoringActiveRef.current = true;
-    
-    console.log('🚀 Starting signal monitoring with', savedSignals.length, 'signals and updated audio');
+    if (!hasSignals || !canMonitor) {
+      console.log('❌ RingManager: Cannot start monitoring - conditions not met');
+      return;
+    }
+
+    console.log('🚀 RingManager: Starting signal monitoring with', savedSignals.length, 'signals');
+    console.log('🎵 RingManager: Using ringtone URL:', customRingtone?.substring(0, 50) + '...');
     
     intervalRef.current = setInterval(() => {
       const now = new Date();
@@ -165,7 +137,7 @@ export const useRingManager = (
         const notAlreadyRang = !alreadyRangIds.has(signalId);
         
         if (shouldTrigger && notAlreadyRang) {
-          console.log(`🎯 Signal should trigger at ${currentTime}:`, signal);
+          console.log(`🎯 RingManager: Signal should trigger at ${currentTime}:`, signal);
           triggerRing(signal);
         }
       });
@@ -175,22 +147,23 @@ export const useRingManager = (
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
-        monitoringActiveRef.current = false;
+        console.log('🧹 RingManager: Monitoring cleanup complete');
       }
     };
-  }, [savedSignals.length, isRingtoneLoaded, customRingtone, shouldRestartMonitoring, triggerRing, getSignalId, alreadyRangIds, antidelaySeconds]);
+  }, [savedSignals, antidelaySeconds, isRingtoneLoaded, customRingtone, triggerRing, getSignalId, alreadyRangIds]);
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = useCallback(() => {
     setRingOffButtonPressed(true);
     setTimeout(() => setRingOffButtonPressed(false), 200);
 
-    console.log('🔇 Ring off pressed - stopping', audioInstancesRef.current.length, 'audio instances');
+    console.log('🔇 RingManager: Ring off pressed - stopping', audioInstancesRef.current.length, 'audio instances');
 
     audioInstancesRef.current.forEach(audio => {
       if (audio) {
         audio.pause();
         audio.currentTime = 0;
+        audio.src = '';
       }
     });
     audioInstancesRef.current = [];
@@ -201,6 +174,8 @@ export const useRingManager = (
       releaseWakeLock(wakeLock);
       setWakeLock(null);
     }
+
+    console.log('✅ RingManager: All audio stopped and cleaned up');
   }, [isRinging, wakeLock]);
 
   return {
