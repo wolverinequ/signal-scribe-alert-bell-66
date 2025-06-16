@@ -7,12 +7,6 @@ import { checkSignalTime } from './signalUtils';
 let backgroundCheckInterval: NodeJS.Timeout | undefined;
 let isBackgroundTaskRunning = false;
 
-// Cache signals and antidelay to avoid repeated storage reads
-let cachedSignals: Signal[] = [];
-let cachedAntidelaySeconds = 15;
-let lastStorageLoadTime = 0;
-const CACHE_DURATION = 5000; // Cache for 5 seconds
-
 export const startBackgroundTask = async () => {
   if (isBackgroundTaskRunning) {
     console.log('⚡ BackgroundTask: Already running, skipping start...');
@@ -31,9 +25,6 @@ export const startBackgroundTask = async () => {
 
     isBackgroundTaskRunning = true;
     console.log('🚀 BackgroundTask: Started - using interval monitoring');
-    
-    // Load initial cache
-    refreshCache();
     
     // Start checking signals every second
     backgroundCheckInterval = setInterval(async () => {
@@ -55,26 +46,17 @@ export const stopBackgroundTask = () => {
   }
 };
 
-const refreshCache = () => {
-  const now = Date.now();
-  if (now - lastStorageLoadTime > CACHE_DURATION) {
-    cachedSignals = loadSignalsFromStorage();
-    cachedAntidelaySeconds = loadAntidelayFromStorage();
-    lastStorageLoadTime = now;
-    console.log('🔄 BackgroundTask: Cache refreshed - signals:', cachedSignals.length, 'antidelay:', cachedAntidelaySeconds);
-  }
-};
-
 const checkSignalsInBackground = async () => {
   try {
-    // Refresh cache periodically instead of loading every second
-    refreshCache();
+    // Load signals fresh each time for background checking (not for UI)
+    const signals = loadSignalsFromStorage();
+    const antidelaySeconds = loadAntidelayFromStorage();
     
-    for (const signal of cachedSignals) {
-      if (checkSignalTime(signal, cachedAntidelaySeconds)) {
+    for (const signal of signals) {
+      if (checkSignalTime(signal, antidelaySeconds)) {
         await triggerLocalNotification(signal);
         
-        // Mark signal as triggered in cache
+        // Mark signal as triggered
         signal.triggered = true;
       }
     }
@@ -120,40 +102,38 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
     // Cancel existing notifications first
     await LocalNotifications.cancel({ notifications: [] });
     
-    const notifications = [];
-    
-    for (let index = 0; index < signals.length; index++) {
-      const signal = signals[index];
-      
-      if (signal.triggered) continue;
-      
-      const [hours, minutes] = signal.timestamp.split(':').map(Number);
-      const signalTime = new Date();
-      signalTime.setHours(hours, minutes, 0, 0);
-      
-      // Subtract antidelay seconds
-      const notificationTime = new Date(signalTime.getTime() - (antidelaySeconds * 1000));
-      
-      // Only schedule if notification time is in the future
-      if (notificationTime > now) {
-        notifications.push({
-          title: 'Binary Options Signal Alert!',
-          body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
-          id: index + 1000, // Use safe integer IDs starting from 1000
-          schedule: { at: notificationTime },
-          sound: 'default',
-          attachments: undefined,
-          actionTypeId: '',
-          extra: {
-            signal: JSON.stringify(signal)
-          }
-        });
-      }
-    }
+    const notifications = signals
+      .filter(signal => !signal.triggered)
+      .map((signal, index) => {
+        const [hours, minutes] = signal.timestamp.split(':').map(Number);
+        const signalTime = new Date();
+        signalTime.setHours(hours, minutes, 0, 0);
+        
+        // Subtract antidelay seconds
+        const notificationTime = new Date(signalTime.getTime() - (antidelaySeconds * 1000));
+        
+        // Only schedule if notification time is in the future
+        if (notificationTime > now) {
+          return {
+            title: 'Binary Options Signal Alert!',
+            body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
+            id: index + 1000, // Use safe integer IDs
+            schedule: { at: notificationTime },
+            sound: 'default',
+            attachments: undefined,
+            actionTypeId: '',
+            extra: {
+              signal: JSON.stringify(signal)
+            }
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
 
     if (notifications.length > 0) {
       await LocalNotifications.schedule({
-        notifications: notifications
+        notifications: notifications as any[]
       });
       console.log(`📅 BackgroundTask: Scheduled ${notifications.length} notifications`);
     } else {
@@ -162,10 +142,4 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
   } catch (error) {
     console.error('❌ BackgroundTask: Failed to schedule signal notifications:', error);
   }
-};
-
-// Function to refresh cache when signals are updated externally
-export const refreshSignalCache = () => {
-  lastStorageLoadTime = 0; // Force cache refresh on next check
-  refreshCache();
 };

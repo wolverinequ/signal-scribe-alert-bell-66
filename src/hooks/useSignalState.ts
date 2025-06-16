@@ -8,7 +8,7 @@ import {
   saveAntidelayToStorage, 
   loadAntidelayFromStorage 
 } from '@/utils/signalStorage';
-import { scheduleAllSignalNotifications, refreshSignalCache } from '@/utils/backgroundTaskManager';
+import { scheduleAllSignalNotifications } from '@/utils/backgroundTaskManager';
 
 export const useSignalState = () => {
   const [signalsText, setSignalsText] = useState('');
@@ -83,9 +83,6 @@ export const useSignalState = () => {
       
       console.log('✅ SignalState: Signals parsed and saved:', signals.length);
       
-      // Refresh background task cache after saving
-      refreshSignalCache();
-      
       // Schedule notifications for the new signals
       if (signals.length > 0) {
         scheduleAllSignalNotifications(signals);
@@ -112,9 +109,6 @@ export const useSignalState = () => {
     );
     setSavedSignals(updatedSignals);
     saveSignalsToStorage(updatedSignals);
-    
-    // Refresh background task cache after updating signal status
-    refreshSignalCache();
   };
 
   return {
