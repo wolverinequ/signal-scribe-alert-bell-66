@@ -61,8 +61,9 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
       
       audio.addEventListener('error', (e) => {
         console.error('🎵 AudioUtils: Custom audio error event:', e);
+        const audioTarget = e.target as HTMLAudioElement;
         console.error('🎵 AudioUtils: Audio error details:', {
-          error: e.target?.error,
+          error: audioTarget?.error,
           src: audio.src,
           readyState: audio.readyState,
           networkState: audio.networkState
