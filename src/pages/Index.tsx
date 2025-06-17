@@ -26,7 +26,7 @@ const Index = () => {
   } = useSignalTracker();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
+    <div className="h-full min-h-screen bg-background flex flex-col select-none overflow-hidden" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
       <SignalInput
         signalsText={signalsText}
         onSignalsTextChange={setSignalsText}
