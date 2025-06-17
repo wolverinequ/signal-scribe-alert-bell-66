@@ -8,6 +8,18 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Check if custom ringtone exists
+  const checkCustomRingtoneExists = async (): Promise<boolean> => {
+    try {
+      await indexedDBManager.init();
+      const existingRingtone = await indexedDBManager.getRingtone();
+      return !!existingRingtone;
+    } catch (error) {
+      console.error('🎵 AudioManager: Error checking for existing ringtone:', error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     // Only initialize once when component mounts
     if (isInitialized) return;
@@ -154,8 +166,17 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
     }
   };
 
-  const triggerRingtoneSelection = () => {
+  const triggerRingtoneSelection = async () => {
     console.log('🎵 AudioManager: Triggering ringtone selection dialog');
+    
+    // Check if a custom ringtone already exists
+    const hasExistingRingtone = await checkCustomRingtoneExists();
+    
+    if (!hasExistingRingtone) {
+      console.log('🎵 AudioManager: No custom ringtone found, prompting user to select one');
+      alert('Please select a custom ringtone to use for signal alerts.');
+    }
+    
     if (fileInputRef.current) {
       fileInputRef.current.click();
     } else {
@@ -183,7 +204,7 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
       await indexedDBManager.init();
       await indexedDBManager.clearRingtone();
       
-      // Set ringtone to null (will use default beep)
+      // Set ringtone to null
       setCustomRingtone(null);
       
       console.log('🎵 AudioManager: Custom ringtone and audio buffer cache cleared successfully');
@@ -197,6 +218,7 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
   return {
     triggerRingtoneSelection,
     clearCustomRingtone,
-    isLoading
+    isLoading,
+    checkCustomRingtoneExists
   };
 };

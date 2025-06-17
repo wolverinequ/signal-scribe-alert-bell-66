@@ -1,6 +1,5 @@
 
 import { audioBufferCache } from '../audioBufferCache';
-import { createBeepAudio } from './audioContext';
 
 // Enhanced Web Audio API player using cached AudioBuffer for instant playback
 export const playCustomRingtoneWithWebAudio = async (
@@ -10,8 +9,8 @@ export const playCustomRingtoneWithWebAudio = async (
   console.log('🎵 AudioUtils: playCustomRingtoneWithWebAudio called with cached buffer optimization');
 
   if (!customRingtone) {
-    console.warn('🎵 AudioUtils: No custom ringtone provided, falling back to beep');
-    createBeepAudio(audioContextsRef);
+    console.warn('🎵 AudioUtils: No custom ringtone provided, prompting user to select one');
+    alert('Please select a custom ringtone first by clicking the Set Ring button.');
     return null;
   }
 
@@ -23,8 +22,8 @@ export const playCustomRingtoneWithWebAudio = async (
     const audioArrayBuffer = await indexedDBManager.getRingtoneAsArrayBuffer();
     
     if (!audioArrayBuffer) {
-      console.warn('🎵 AudioUtils: No ArrayBuffer found in IndexedDB, falling back to beep');
-      createBeepAudio(audioContextsRef);
+      console.warn('🎵 AudioUtils: No ArrayBuffer found in IndexedDB, prompting user to select ringtone');
+      alert('No custom ringtone found. Please select one by clicking the Set Ring button.');
       return null;
     }
 
@@ -102,10 +101,10 @@ export const playCustomRingtoneWithWebAudio = async (
     
   } catch (error) {
     console.error('🎵 AudioUtils: Error playing custom ringtone with cached buffer:', error);
-    console.log('🎵 AudioUtils: Falling back to default beep');
+    console.log('🎵 AudioUtils: Prompting user to select new ringtone');
     
-    // Fallback to default beep
-    createBeepAudio(audioContextsRef);
+    // Instead of fallback, prompt user to select a new ringtone
+    alert('Failed to play custom ringtone. Please select a new one by clicking the Set Ring button.');
     return null;
   }
 };

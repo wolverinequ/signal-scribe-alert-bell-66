@@ -1,6 +1,5 @@
 
 import { isValidAudioSource, isAppInBackground } from './audioValidation';
-import { createBeepAudio } from './audioContext';
 import { playCustomRingtoneWithWebAudio } from './webAudioPlayer';
 
 export const playCustomRingtone = (customRingtone: string | null, audioContextsRef?: React.MutableRefObject<AudioContext[]>): Promise<HTMLAudioElement | AudioContext | null> => {
@@ -10,6 +9,13 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
     ringtoneType: customRingtone ? (customRingtone.startsWith('data:') ? 'data-url' : 'blob-url') : 'none',
     isBackground: isAppInBackground()
   });
+
+  // If no custom ringtone is provided, prompt user to select one
+  if (!customRingtone) {
+    console.log('🎵 AudioUtils: No custom ringtone provided, prompting user to select one');
+    alert('Please select a custom ringtone first by clicking the Set Ring button.');
+    return Promise.resolve(null);
+  }
 
   // Choose audio API based on app state
   const isBackground = isAppInBackground();
@@ -95,9 +101,9 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
         const errorMsg = error?.code ? errorMessages[error.code] || `Unknown error code: ${error.code}` : 'Unknown error';
         console.error('🎵 AudioUtils: Error description:', errorMsg);
         
-        // Fall back to default beep on error
-        console.log('🎵 AudioUtils: Falling back to default beep due to error');
-        createBeepAudio(audioContextsRef);
+        // Instead of fallback, prompt user to select a new ringtone
+        console.log('🎵 AudioUtils: Audio playback failed, prompting user to select new ringtone');
+        alert('Audio playback failed. Please select a new custom ringtone.');
         resolve(null);
       });
       
@@ -110,21 +116,15 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
         resolve(audio);
       }).catch(err => {
         console.error('🎵 AudioUtils: Error playing custom ringtone:', err);
-        console.log('🎵 AudioUtils: Falling back to default beep');
+        console.log('🎵 AudioUtils: Prompting user to select new ringtone');
         
-        // Fallback to default beep
-        createBeepAudio(audioContextsRef);
+        // Instead of fallback, prompt user to select a new ringtone
+        alert('Failed to play custom ringtone. Please select a new one.');
         resolve(null);
       });
     } else {
-      if (customRingtone) {
-        console.warn('🎵 AudioUtils: Invalid audio source provided, falling back to beep');
-      } else {
-        console.log('🎵 AudioUtils: No custom ringtone provided, playing default beep');
-      }
-      
-      // Play default beep
-      createBeepAudio(audioContextsRef);
+      console.warn('🎵 AudioUtils: Invalid or missing audio source, prompting user to select ringtone');
+      alert('Please select a custom ringtone first by clicking the Set Ring button.');
       resolve(null);
     }
   });

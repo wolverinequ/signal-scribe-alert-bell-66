@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { 
   startBackgroundTask, 
@@ -34,7 +35,6 @@ export const useSignalTracker = () => {
 
   const {
     showAntidelayDialog,
-    showSoundSelectionDialog,
     antidelayInput,
     setAntidelayInput,
     setRingButtonPressed,
@@ -42,10 +42,7 @@ export const useSignalTracker = () => {
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
-    handleAntidelayCancel,
-    handleUseDefaultSound,
-    handleSetCustomSound,
-    handleSoundSelectionCancel
+    handleAntidelayCancel
   } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds, triggerRingtoneSelection, clearCustomRingtone);
 
   // Start background task when app loads and signals exist
@@ -81,7 +78,6 @@ export const useSignalTracker = () => {
     ringOffButtonPressed,
     setRingButtonPressed,
     showAntidelayDialog,
-    showSoundSelectionDialog,
     antidelayInput,
     setAntidelayInput,
     antidelaySeconds,
@@ -91,9 +87,6 @@ export const useSignalTracker = () => {
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
-    handleAntidelayCancel,
-    handleUseDefaultSound,
-    handleSetCustomSound,
-    handleSoundSelectionCancel
+    handleAntidelayCancel
   };
 };
