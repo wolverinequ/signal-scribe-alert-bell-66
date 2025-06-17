@@ -56,7 +56,7 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
       console.log('🎵 AudioUtils: Attempting to play custom ringtone from IndexedDB');
       
       const audio = new Audio();
-      audio.loop = true; // Loop the ringtone
+      // Removed audio.loop = true to play only once
       audio.preload = 'auto';
       
       // Add event listeners for debugging and error handling
