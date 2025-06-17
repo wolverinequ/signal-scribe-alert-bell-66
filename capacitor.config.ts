@@ -34,8 +34,14 @@ const config: CapacitorConfig = {
       style: 'LIGHT',
       backgroundColor: '#ffffff',
       overlay: false,
+    },
+    App: {
+      hideFrom: []
     }
   },
+  android: {
+    allowMixedContent: true
+  }
 };
 
 export default config;
