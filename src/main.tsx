@@ -2,6 +2,21 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { SessionManager } from './utils/sessionManager'
+
+// Initialize session management
+console.log('🚀 App: Initializing session management');
+const isFreshLaunch = SessionManager.isFreshLaunch();
+console.log('🚀 App: Fresh launch status:', isFreshLaunch);
+
+if (isFreshLaunch) {
+  console.log('🚀 App: Fresh launch detected - app will start clean');
+} else {
+  console.log('🚀 App: Returning from background - preserving state');
+}
+
+// Mark session as active
+SessionManager.markSessionActive();
 
 // Register service worker for background functionality
 if ('serviceWorker' in navigator) {
@@ -35,10 +50,12 @@ if ('Notification' in window && Notification.permission === 'default') {
 // Handle visibility changes for background task management
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    console.log('App moved to background');
+    console.log('🚀 App: App moved to background');
     // The background task will be started by the useSignalTracker hook
   } else {
-    console.log('App returned to foreground');
+    console.log('🚀 App: App returned to foreground');
+    // Mark session as active when returning from background
+    SessionManager.markSessionActive();
     // Reload signals from storage to sync any changes made in background
     window.dispatchEvent(new CustomEvent('app-foreground'));
   }
