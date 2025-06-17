@@ -3,6 +3,8 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { Signal } from '@/types/signal';
 import { loadSignalsFromStorage, loadAntidelayFromStorage } from './signalStorage';
 import { checkSignalTime, hasSignalTimePassed } from './signalUtils';
+import { indexedDBManager } from './indexedDBUtils';
+import { playCustomRingtoneWithWebAudio, createBeepAudio } from './audioUtils';
 
 let backgroundCheckInterval: NodeJS.Timeout | undefined;
 
@@ -37,6 +39,30 @@ export const stopBackgroundTask = () => {
   }
 };
 
+const playBackgroundAudio = async (signal: Signal) => {
+  try {
+    console.log('🔔 BackgroundTask: Playing audio for signal in background');
+    
+    // Initialize IndexedDB if needed
+    await indexedDBManager.init();
+    
+    // Try to get custom ringtone from IndexedDB
+    const customRingtone = await indexedDBManager.getRingtone();
+    
+    if (customRingtone) {
+      console.log('🔔 BackgroundTask: Custom ringtone found, playing with Web Audio API');
+      await playCustomRingtoneWithWebAudio(customRingtone);
+    } else {
+      console.log('🔔 BackgroundTask: No custom ringtone, playing default beep');
+      createBeepAudio();
+    }
+  } catch (error) {
+    console.error('🔔 BackgroundTask: Error playing audio:', error);
+    // Fallback to default beep on any error
+    createBeepAudio();
+  }
+};
+
 const checkSignalsInBackground = async () => {
   try {
     // Use cached data to avoid repeated localStorage reads
@@ -52,6 +78,10 @@ const checkSignalsInBackground = async () => {
     
     for (const signal of futureSignals) {
       if (checkSignalTime(signal, antidelaySeconds)) {
+        // Play background audio first
+        await playBackgroundAudio(signal);
+        
+        // Then trigger notification
         await triggerLocalNotification(signal);
         
         // Mark signal as triggered and save back to storage

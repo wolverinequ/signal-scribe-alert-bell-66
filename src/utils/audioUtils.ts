@@ -44,6 +44,11 @@ const isValidAudioSource = (source: string): boolean => {
   return false;
 };
 
+const isAppInBackground = (): boolean => {
+  // Check if app is hidden or in background
+  return document.hidden || document.visibilityState === 'hidden';
+};
+
 // New Web Audio API custom audio player
 export const playCustomRingtoneWithWebAudio = async (
   customRingtone: string | null, 
@@ -118,12 +123,23 @@ export const playCustomRingtoneWithWebAudio = async (
   }
 };
 
-export const playCustomRingtone = (customRingtone: string | null, audioContextsRef?: React.MutableRefObject<AudioContext[]>): Promise<HTMLAudioElement | null> => {
+export const playCustomRingtone = (customRingtone: string | null, audioContextsRef?: React.MutableRefObject<AudioContext[]>): Promise<HTMLAudioElement | AudioContext | null> => {
   console.log('🎵 AudioUtils: playCustomRingtone called with:', {
     customRingtone: customRingtone ? `${customRingtone.substring(0, 50)}...` : null,
     hasCustomRingtone: !!customRingtone,
-    ringtoneType: customRingtone ? (customRingtone.startsWith('data:') ? 'data-url' : 'blob-url') : 'none'
+    ringtoneType: customRingtone ? (customRingtone.startsWith('data:') ? 'data-url' : 'blob-url') : 'none',
+    isBackground: isAppInBackground()
   });
+
+  // Choose audio API based on app state
+  const isBackground = isAppInBackground();
+  
+  if (isBackground) {
+    console.log('🎵 AudioUtils: App is in background, using Web Audio API');
+    return playCustomRingtoneWithWebAudio(customRingtone, audioContextsRef);
+  }
+
+  console.log('🎵 AudioUtils: App is in foreground, using HTML5 Audio API');
   
   return new Promise((resolve, reject) => {
     if (customRingtone && isValidAudioSource(customRingtone)) {
