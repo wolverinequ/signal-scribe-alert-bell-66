@@ -1,6 +1,5 @@
 
 import { Signal } from '@/types/signal';
-import { SessionManager } from './sessionManager';
 
 const SIGNALS_STORAGE_KEY = 'binary_signals';
 const ANTIDELAY_STORAGE_KEY = 'antidelay_seconds';
@@ -12,45 +11,17 @@ let antidelayCache: number | null = null;
 export const saveSignalsToStorage = (signals: Signal[]) => {
   try {
     localStorage.setItem(SIGNALS_STORAGE_KEY, JSON.stringify(signals));
-    
-    // Mark signals as belonging to current session
-    SessionManager.markSignalsForCurrentSession();
-    
     // Update cache when saving
     signalsCache = signals;
-    console.log('📦 SignalStorage: Signals saved to localStorage:', signals);
-    console.log('📦 SignalStorage: Signals marked for current session');
+    console.log('Signals saved to localStorage:', signals);
   } catch (error) {
-    console.error('📦 SignalStorage: Failed to save signals to localStorage:', error);
+    console.error('Failed to save signals to localStorage:', error);
   }
 };
 
 export const loadSignalsFromStorage = (): Signal[] => {
-  // Check if this is a fresh launch
-  const isFreshLaunch = SessionManager.isFreshLaunch();
-  
-  if (isFreshLaunch) {
-    console.log('📦 SignalStorage: Fresh launch detected - clearing old signals');
-    
-    // Clear old signals on fresh launch
-    try {
-      localStorage.removeItem(SIGNALS_STORAGE_KEY);
-      SessionManager.clearSessionSignals();
-    } catch (error) {
-      console.error('📦 SignalStorage: Error clearing old signals:', error);
-    }
-    
-    // Mark session as active for future background/foreground detection
-    SessionManager.markSessionActive();
-    
-    // Cache empty array and return
-    signalsCache = [];
-    return [];
-  }
-
-  // Check if we have cached data for returning from background
+  // Return cached data if available
   if (signalsCache !== null) {
-    console.log('📦 SignalStorage: Returning cached signals (background return)');
     return signalsCache;
   }
 
@@ -58,26 +29,13 @@ export const loadSignalsFromStorage = (): Signal[] => {
     const stored = localStorage.getItem(SIGNALS_STORAGE_KEY);
     if (stored) {
       const signals = JSON.parse(stored);
-      
-      // Check if signals belong to current session
-      const areCurrentSessionSignals = SessionManager.areSignalsFromCurrentSession();
-      
-      if (areCurrentSessionSignals) {
-        // Cache the loaded data
-        signalsCache = signals;
-        console.log('📦 SignalStorage: Signals loaded from current session:', signals);
-        return signals;
-      } else {
-        console.log('📦 SignalStorage: Signals from different session - clearing');
-        // Clear signals from different session
-        localStorage.removeItem(SIGNALS_STORAGE_KEY);
-        SessionManager.clearSessionSignals();
-        signalsCache = [];
-        return [];
-      }
+      // Cache the loaded data
+      signalsCache = signals;
+      console.log('Signals loaded from localStorage:', signals);
+      return signals;
     }
   } catch (error) {
-    console.error('📦 SignalStorage: Failed to load signals from localStorage:', error);
+    console.error('Failed to load signals from localStorage:', error);
   }
   
   // Cache empty array
@@ -90,9 +48,8 @@ export const saveAntidelayToStorage = (seconds: number) => {
     localStorage.setItem(ANTIDELAY_STORAGE_KEY, seconds.toString());
     // Update cache when saving
     antidelayCache = seconds;
-    console.log('📦 SignalStorage: Antidelay saved (preserved across sessions):', seconds);
   } catch (error) {
-    console.error('📦 SignalStorage: Failed to save antidelay to localStorage:', error);
+    console.error('Failed to save antidelay to localStorage:', error);
   }
 };
 
@@ -108,11 +65,10 @@ export const loadAntidelayFromStorage = (): number => {
       const antidelay = parseInt(stored, 10) || 15;
       // Cache the loaded data
       antidelayCache = antidelay;
-      console.log('📦 SignalStorage: Antidelay loaded (preserved across sessions):', antidelay);
       return antidelay;
     }
   } catch (error) {
-    console.error('📦 SignalStorage: Failed to load antidelay from localStorage:', error);
+    console.error('Failed to load antidelay from localStorage:', error);
   }
   
   // Cache default value
@@ -123,12 +79,11 @@ export const loadAntidelayFromStorage = (): number => {
 export const clearSignalsFromStorage = () => {
   try {
     localStorage.removeItem(SIGNALS_STORAGE_KEY);
-    SessionManager.clearSessionSignals();
     // Clear cache when removing
     signalsCache = null;
-    console.log('📦 SignalStorage: Signals cleared from localStorage and session');
+    console.log('Signals cleared from localStorage');
   } catch (error) {
-    console.error('📦 SignalStorage: Failed to clear signals from localStorage:', error);
+    console.error('Failed to clear signals from localStorage:', error);
   }
 };
 
@@ -136,5 +91,4 @@ export const clearSignalsFromStorage = () => {
 export const invalidateSignalsCache = () => {
   signalsCache = null;
   antidelayCache = null;
-  console.log('📦 SignalStorage: Cache invalidated');
 };

@@ -9,7 +9,6 @@ import {
   loadAntidelayFromStorage 
 } from '@/utils/signalStorage';
 import { scheduleAllSignalNotifications } from '@/utils/backgroundTaskManager';
-import { SessionManager } from '@/utils/sessionManager';
 
 export const useSignalState = () => {
   const [signalsText, setSignalsText] = useState('');
@@ -20,51 +19,34 @@ export const useSignalState = () => {
 
   // Load saved data on component mount
   useEffect(() => {
-    console.log('📊 SignalState: Initializing signal state');
-    
-    // Check if this is a fresh launch
-    const isFreshLaunch = SessionManager.isFreshLaunch();
-    console.log('📊 SignalState: Fresh launch status:', isFreshLaunch);
-    
-    // Load signals (will be empty array if fresh launch)
     const loadedSignals = loadSignalsFromStorage();
-    console.log('📊 SignalState: Loaded signals:', loadedSignals);
+    const loadedAntidelay = loadAntidelayFromStorage();
     
     if (loadedSignals.length > 0) {
       setSavedSignals(loadedSignals);
-      console.log('📊 SignalState: Signals set from storage:', loadedSignals);
-    } else {
-      console.log('📊 SignalState: Starting with empty signals (fresh launch or no saved signals)');
+      console.log('📊 Loaded signals from storage:', loadedSignals);
     }
     
-    // Load antidelay (always preserved as user preference)
-    const loadedAntidelay = loadAntidelayFromStorage();
     setAntidelaySeconds(loadedAntidelay);
-    console.log('📊 SignalState: Antidelay loaded and preserved:', loadedAntidelay);
+    console.log('📊 Loaded antidelay from storage:', loadedAntidelay);
     
-    // Note: Custom ringtone is loaded in useAudioManager via IndexedDB (preserved as user preference)
-    console.log('📊 SignalState: Custom ringtone will be loaded from IndexedDB via useAudioManager');
+    // Note: Custom ringtone is now loaded in useAudioManager via IndexedDB
+    console.log('📊 Custom ringtone will be loaded from IndexedDB via useAudioManager');
   }, []);
 
-  // Save antidelay changes to storage (preserve across sessions)
+  // Save antidelay changes to storage
   useEffect(() => {
     saveAntidelayToStorage(antidelaySeconds);
   }, [antidelaySeconds]);
 
   // Save signals handler
   const handleSaveSignals = () => {
-    console.log('📊 SignalState: Saving signals to current session');
-    
     setSaveButtonPressed(true);
     setTimeout(() => setSaveButtonPressed(false), 200);
     
     const signals = parseSignals(signalsText);
     setSavedSignals(signals);
-    
-    // Save to storage with session tracking
     saveSignalsToStorage(signals);
-    
-    console.log('📊 SignalState: Signals saved and marked for current session:', signals);
     
     // Schedule notifications for the new signals
     if (signals.length > 0) {
@@ -73,15 +55,11 @@ export const useSignalState = () => {
   };
 
   const updateSignalTriggered = (signal: Signal) => {
-    console.log('📊 SignalState: Updating signal as triggered:', signal);
-    
     const updatedSignals = savedSignals.map(s => 
       s === signal ? { ...s, triggered: true } : s
     );
     setSavedSignals(updatedSignals);
     saveSignalsToStorage(updatedSignals);
-    
-    console.log('📊 SignalState: Signal marked as triggered and saved');
   };
 
   return {
