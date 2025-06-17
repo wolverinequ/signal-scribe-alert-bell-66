@@ -103,11 +103,25 @@
     margin: 0;
     padding: 0;
     overflow-x: hidden;
+    /* Use available height minus system UI */
+    height: calc(100vh - env(keyboard-inset-height, 0px));
+    min-height: calc(100vh - env(keyboard-inset-height, 0px));
   }
 
   html, body, #root {
-    height: 100%;
-    min-height: 100vh;
-    min-height: 100dvh;
+    /* Avoid full viewport height to prevent overlap with system UI */
+    height: auto;
+    min-height: auto;
+  }
+
+  #root {
+    display: flex;
+    flex-direction: column;
+    /* Ensure proper spacing from system elements */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
 }
