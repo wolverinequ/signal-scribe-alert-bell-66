@@ -30,7 +30,8 @@ export const useSignalTracker = () => {
 
   const {
     ringOffButtonPressed,
-    handleRingOff
+    handleRingOff,
+    testCustomRingtone
   } = useRingManager(savedSignals, antidelaySeconds, customRingtone, updateSignalTriggered);
 
   const {
@@ -95,6 +96,7 @@ export const useSignalTracker = () => {
     handleAntidelayCancel,
     handleSoundSelectionUseDefault,
     handleSoundSelectionSetCustom,
-    handleSoundSelectionCancel
+    handleSoundSelectionCancel,
+    testCustomRingtone
   };
 };

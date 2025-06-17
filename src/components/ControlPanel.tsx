@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { BellOff, Save, Bell } from 'lucide-react';
+import { BellOff, Save, Bell, TestTube } from 'lucide-react';
 
 interface ControlPanelProps {
   signalsText: string;
@@ -13,6 +13,7 @@ interface ControlPanelProps {
   onSetRingMouseDown: (e: React.MouseEvent | React.TouchEvent) => void;
   onSetRingMouseUp: (e: React.MouseEvent | React.TouchEvent) => void;
   onSetRingMouseLeave: () => void;
+  onTestRingtone?: () => void;
 }
 
 const ControlPanel = ({
@@ -24,7 +25,8 @@ const ControlPanel = ({
   onSaveSignals,
   onSetRingMouseDown,
   onSetRingMouseUp,
-  onSetRingMouseLeave
+  onSetRingMouseLeave,
+  onTestRingtone
 }: ControlPanelProps) => {
   const handleRingOffClick = () => {
     onRingOff();
@@ -46,9 +48,21 @@ const ControlPanel = ({
     }, 200);
   };
 
+  const handleTestRingtoneClick = () => {
+    if (onTestRingtone) {
+      onTestRingtone();
+    }
+    // Remove focus after click to return to original color
+    setTimeout(() => {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }, 200);
+  };
+
   return (
     <div className="bg-card p-4">
-      <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
+      <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mb-4">
         <Button
           onClick={handleRingOffClick}
           variant="outline"
@@ -73,7 +87,9 @@ const ControlPanel = ({
           <Save className="h-6 w-6" />
           <span className="text-xs">Save</span>
         </Button>
+      </div>
 
+      <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
         <Button
           onMouseDown={onSetRingMouseDown}
           onMouseUp={onSetRingMouseUp}
@@ -88,6 +104,16 @@ const ControlPanel = ({
         >
           <Bell className="h-6 w-6" />
           <span className="text-xs">Set Ring</span>
+        </Button>
+
+        <Button
+          onClick={handleTestRingtoneClick}
+          variant="outline"
+          className="h-16 flex flex-col gap-1 transition-transform duration-200 select-none hover:bg-background focus:bg-background active:bg-background"
+          style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+        >
+          <TestTube className="h-6 w-6" />
+          <span className="text-xs">Test Sound</span>
         </Button>
       </div>
     </div>

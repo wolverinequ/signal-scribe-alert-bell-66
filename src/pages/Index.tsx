@@ -27,7 +27,8 @@ const Index = () => {
     handleAntidelayCancel,
     handleSoundSelectionUseDefault,
     handleSoundSelectionSetCustom,
-    handleSoundSelectionCancel
+    handleSoundSelectionCancel,
+    testCustomRingtone
   } = useSignalTracker();
 
   return (
@@ -47,6 +48,7 @@ const Index = () => {
         onSetRingMouseDown={handleSetRingMouseDown}
         onSetRingMouseUp={handleSetRingMouseUp}
         onSetRingMouseLeave={handleSetRingMouseLeave}
+        onTestRingtone={testCustomRingtone}
       />
 
       <AntidelayDialog

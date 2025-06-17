@@ -52,15 +52,60 @@ export const useRingManager = (
     onSignalTriggered(signal);
   };
 
+  // Manual test function for custom ringtone
+  const testCustomRingtone = async () => {
+    console.log('🔔 RingManager: Manual ringtone test triggered with:', customRingtone);
+    try {
+      const audio = await playCustomRingtone(customRingtone, audioContextsRef);
+      if (audio instanceof HTMLAudioElement) {
+        audioInstancesRef.current.push(audio);
+        console.log('🔔 RingManager: Manual test audio instance added to tracking array');
+        
+        // Stop after 3 seconds for testing
+        setTimeout(() => {
+          console.log('🔔 RingManager: Stopping manual test audio');
+          audio.pause();
+          audio.currentTime = 0;
+          const index = audioInstancesRef.current.indexOf(audio);
+          if (index > -1) {
+            audioInstancesRef.current.splice(index, 1);
+          }
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('🔔 RingManager: Error during manual ringtone test:', error);
+    }
+  };
+
   // Check signals every second for precise timing using cached data
   useEffect(() => {
     if (savedSignals.length > 0) {
-      console.log('🔔 RingManager: Starting signal monitoring interval with custom ringtone:', customRingtone);
+      console.log('🔔 RingManager: Starting signal monitoring interval with', savedSignals.length, 'signals');
+      console.log('🔔 RingManager: Signals to monitor:', savedSignals.map(s => ({
+        timestamp: s.timestamp,
+        triggered: s.triggered,
+        asset: s.asset,
+        direction: s.direction
+      })));
+      console.log('🔔 RingManager: Using custom ringtone:', customRingtone);
       
       intervalRef.current = setInterval(() => {
+        const now = new Date();
+        const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+        
+        console.log('🔔 RingManager: Checking signals at:', currentTime);
+        
         // Use the savedSignals prop directly instead of loading from storage
-        savedSignals.forEach(signal => {
-          if (checkSignalTime(signal, antidelaySeconds)) {
+        savedSignals.forEach((signal, index) => {
+          const shouldTrigger = checkSignalTime(signal, antidelaySeconds);
+          console.log(`🔔 RingManager: Signal ${index} (${signal.timestamp}) check result:`, {
+            shouldTrigger,
+            triggered: signal.triggered,
+            currentTime,
+            antidelaySeconds
+          });
+          
+          if (shouldTrigger) {
             console.log('🔔 RingManager: Signal time matched, triggering ring:', signal);
             triggerRing(signal);
           }
@@ -73,6 +118,8 @@ export const useRingManager = (
           console.log('🔔 RingManager: Signal monitoring interval cleared');
         }
       };
+    } else {
+      console.log('🔔 RingManager: No signals to monitor');
     }
   }, [savedSignals, customRingtone, antidelaySeconds]);
 
@@ -127,6 +174,7 @@ export const useRingManager = (
     isRinging,
     currentRingingSignal,
     ringOffButtonPressed,
-    handleRingOff
+    handleRingOff,
+    testCustomRingtone
   };
 };
