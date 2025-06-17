@@ -1,9 +1,14 @@
-
 import { Signal } from '@/types/signal';
 
 interface SignalData {
   signals: Signal[];
   timestamp: number;
+}
+
+interface RingtoneData {
+  data: ArrayBuffer;
+  mimeType: string;
+  fileName: string;
 }
 
 class IndexedDBManager {
@@ -140,10 +145,17 @@ class IndexedDBManager {
         const transaction = this.db.transaction([this.storeName], 'readwrite');
         const store = transaction.objectStore(this.storeName);
         
-        const request = store.put(fileData, 'custom_ringtone');
+        // Store both data and metadata
+        const ringtoneData: RingtoneData = {
+          data: fileData,
+          mimeType: file.type,
+          fileName: file.name
+        };
+        
+        const request = store.put(ringtoneData, 'custom_ringtone');
         
         request.onsuccess = () => {
-          console.log('🗄️ IndexedDB: Ringtone saved successfully');
+          console.log('🗄️ IndexedDB: Ringtone saved successfully with MIME type:', file.type);
           resolve();
         };
         
@@ -179,27 +191,40 @@ class IndexedDBManager {
       const request = store.get('custom_ringtone');
       
       request.onsuccess = (event: Event) => {
-        const fileData = (event.target as IDBRequest).result as ArrayBuffer;
+        const result = (event.target as IDBRequest).result;
         
-        if (fileData) {
-          // Convert ArrayBuffer to Blob
-          const blob = new Blob([fileData]);
-          
-          // Check if the blob is an audio file
-          if (blob.type.startsWith('audio/')) {
-            // Create a blob URL
+        if (result) {
+          // Check if it's the new format with MIME type
+          if (result.data && result.mimeType) {
+            const ringtoneData = result as RingtoneData;
+            
+            // Create a blob with the correct MIME type
+            const blob = new Blob([ringtoneData.data], { type: ringtoneData.mimeType });
             const url = URL.createObjectURL(blob);
             
             console.log('🗄️ IndexedDB: Ringtone loaded successfully', {
-              blobType: blob.type,
+              fileName: ringtoneData.fileName,
+              mimeType: ringtoneData.mimeType,
               blobSize: blob.size,
               blobUrl: url.substring(0, 50) + '...'
             });
             
             resolve(url);
           } else {
-            console.error('🗄️ IndexedDB: Unsupported audio format');
-            reject(new Error('Unsupported audio format'));
+            // Handle legacy format (just ArrayBuffer) - for backward compatibility
+            const fileData = result as ArrayBuffer;
+            console.log('🗄️ IndexedDB: Legacy ringtone format detected, converting...');
+            
+            // Try to create blob without MIME type (fallback)
+            const blob = new Blob([fileData]);
+            const url = URL.createObjectURL(blob);
+            
+            console.log('🗄️ IndexedDB: Legacy ringtone loaded', {
+              blobSize: blob.size,
+              blobUrl: url.substring(0, 50) + '...'
+            });
+            
+            resolve(url);
           }
         } else {
           console.log('🗄️ IndexedDB: No ringtone found');
