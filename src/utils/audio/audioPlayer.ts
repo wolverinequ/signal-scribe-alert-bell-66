@@ -1,0 +1,114 @@
+
+import { isValidAudioSource, isAppInBackground } from './audioValidation';
+import { createBeepAudio } from './audioContext';
+import { playCustomRingtoneWithWebAudio } from './webAudioPlayer';
+
+export const playCustomRingtone = (customRingtone: string | null, audioContextsRef?: React.MutableRefObject<AudioContext[]>): Promise<HTMLAudioElement | AudioContext | null> => {
+  console.log('🎵 AudioUtils: playCustomRingtone called with:', {
+    customRingtone: customRingtone ? `${customRingtone.substring(0, 50)}...` : null,
+    hasCustomRingtone: !!customRingtone,
+    ringtoneType: customRingtone ? (customRingtone.startsWith('data:') ? 'data-url' : 'blob-url') : 'none',
+    isBackground: isAppInBackground()
+  });
+
+  // Choose audio API based on app state
+  const isBackground = isAppInBackground();
+  
+  if (isBackground) {
+    console.log('🎵 AudioUtils: App is in background, using Web Audio API with direct ArrayBuffer');
+    return playCustomRingtoneWithWebAudio(customRingtone, audioContextsRef);
+  }
+
+  console.log('🎵 AudioUtils: App is in foreground, using HTML5 Audio API');
+  
+  return new Promise((resolve, reject) => {
+    if (customRingtone && isValidAudioSource(customRingtone)) {
+      console.log('🎵 AudioUtils: Attempting to play custom ringtone from IndexedDB');
+      
+      const audio = new Audio();
+      audio.preload = 'auto';
+      
+      // Add event listeners for debugging and error handling
+      audio.addEventListener('loadstart', () => {
+        console.log('🎵 AudioUtils: Custom audio load started');
+      });
+      
+      audio.addEventListener('canplay', () => {
+        console.log('🎵 AudioUtils: Custom audio can play');
+      });
+      
+      audio.addEventListener('canplaythrough', () => {
+        console.log('🎵 AudioUtils: Custom audio can play through');
+      });
+      
+      audio.addEventListener('loadedmetadata', () => {
+        console.log('🎵 AudioUtils: Custom audio metadata loaded:', {
+          duration: audio.duration,
+          readyState: audio.readyState
+        });
+      });
+      
+      audio.addEventListener('playing', () => {
+        console.log('🎵 AudioUtils: Custom audio is playing');
+      });
+      
+      audio.addEventListener('error', (e) => {
+        console.error('🎵 AudioUtils: Custom audio error event:', e);
+        const audioTarget = e.target as HTMLAudioElement;
+        const error = audioTarget?.error;
+        
+        console.error('🎵 AudioUtils: Audio error details:', {
+          error: error,
+          code: error?.code,
+          message: error?.message,
+          src: audio.src,
+          readyState: audio.readyState,
+          networkState: audio.networkState,
+          currentTime: audio.currentTime
+        });
+        
+        // Map error codes to descriptions
+        const errorMessages: { [key: number]: string } = {
+          1: 'MEDIA_ERR_ABORTED - playback aborted',
+          2: 'MEDIA_ERR_NETWORK - network error',
+          3: 'MEDIA_ERR_DECODE - decoding error',
+          4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - source not supported'
+        };
+        
+        const errorMsg = error?.code ? errorMessages[error.code] || `Unknown error code: ${error.code}` : 'Unknown error';
+        console.error('🎵 AudioUtils: Error description:', errorMsg);
+        
+        // Fall back to default beep on error
+        console.log('🎵 AudioUtils: Falling back to default beep due to error');
+        createBeepAudio(audioContextsRef);
+        resolve(null);
+      });
+      
+      // Set the audio source (blob URL from IndexedDB)
+      audio.src = customRingtone;
+      audio.load(); // Explicitly load the audio
+      
+      audio.play().then(() => {
+        console.log('🎵 AudioUtils: Custom ringtone playback started successfully');
+        resolve(audio);
+      }).catch(err => {
+        console.error('🎵 AudioUtils: Error playing custom ringtone:', err);
+        console.log('🎵 AudioUtils: Falling back to default beep');
+        
+        // Fallback to default beep
+        createBeepAudio(audioContextsRef);
+        resolve(null);
+      });
+    } else {
+      if (customRingtone) {
+        console.warn('🎵 AudioUtils: Invalid audio source provided, falling back to beep');
+      } else {
+        console.log('🎵 AudioUtils: No custom ringtone provided, playing default beep');
+      }
+      
+      // Play default beep
+      createBeepAudio(audioContextsRef);
+      resolve(null);
+    }
+  });
+};
