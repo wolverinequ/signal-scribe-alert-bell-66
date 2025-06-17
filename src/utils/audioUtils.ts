@@ -44,6 +44,80 @@ const isValidAudioSource = (source: string): boolean => {
   return false;
 };
 
+// New Web Audio API custom audio player
+export const playCustomRingtoneWithWebAudio = async (
+  customRingtone: string | null, 
+  audioContextsRef?: React.MutableRefObject<AudioContext[]>
+): Promise<AudioContext | null> => {
+  console.log('🎵 AudioUtils: playCustomRingtoneWithWebAudio called with:', {
+    customRingtone: customRingtone ? `${customRingtone.substring(0, 50)}...` : null,
+    hasCustomRingtone: !!customRingtone,
+    ringtoneType: customRingtone ? (customRingtone.startsWith('data:') ? 'data-url' : 'blob-url') : 'none'
+  });
+
+  if (!customRingtone || !isValidAudioSource(customRingtone)) {
+    console.warn('🎵 AudioUtils: Invalid or missing audio source for Web Audio API, falling back to beep');
+    createBeepAudio(audioContextsRef);
+    return null;
+  }
+
+  try {
+    console.log('🎵 AudioUtils: Fetching audio data for Web Audio API playback');
+    
+    // Fetch the blob data
+    const response = await fetch(customRingtone);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    console.log('🎵 AudioUtils: Audio data fetched, size:', arrayBuffer.byteLength);
+
+    // Create audio context
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Decode audio data
+    console.log('🎵 AudioUtils: Decoding audio buffer...');
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    console.log('🎵 AudioUtils: Audio buffer decoded successfully:', {
+      duration: audioBuffer.duration,
+      channels: audioBuffer.numberOfChannels,
+      sampleRate: audioBuffer.sampleRate
+    });
+
+    // Create buffer source and connect to destination
+    const source = audioContext.createBufferSource();
+    const gainNode = audioContext.createGain();
+    
+    source.buffer = audioBuffer;
+    source.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Set volume
+    gainNode.gain.value = 0.8;
+    
+    // Play audio
+    source.start(0);
+    console.log('🎵 AudioUtils: Custom ringtone playback started with Web Audio API');
+    
+    // Store audio context for cleanup tracking if ref is provided
+    if (audioContextsRef) {
+      audioContextsRef.current.push(audioContext);
+      console.log('🎵 AudioUtils: Audio context added to tracking array');
+    }
+    
+    return audioContext;
+    
+  } catch (error) {
+    console.error('🎵 AudioUtils: Error playing custom ringtone with Web Audio API:', error);
+    console.log('🎵 AudioUtils: Falling back to default beep');
+    
+    // Fallback to default beep
+    createBeepAudio(audioContextsRef);
+    return null;
+  }
+};
+
 export const playCustomRingtone = (customRingtone: string | null, audioContextsRef?: React.MutableRefObject<AudioContext[]>): Promise<HTMLAudioElement | null> => {
   console.log('🎵 AudioUtils: playCustomRingtone called with:', {
     customRingtone: customRingtone ? `${customRingtone.substring(0, 50)}...` : null,

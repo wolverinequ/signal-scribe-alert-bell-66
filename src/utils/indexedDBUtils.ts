@@ -239,6 +239,103 @@ class IndexedDBManager {
     });
   }
 
+  async getRingtoneAsArrayBuffer(): Promise<ArrayBuffer | null> {
+    console.log('🗄️ IndexedDB: Getting ringtone as ArrayBuffer for Web Audio API');
+    
+    if (!this.db) {
+      await this.init();
+    }
+
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.get('custom_ringtone');
+      
+      request.onsuccess = (event: Event) => {
+        const result = (event.target as IDBRequest).result;
+        
+        if (result) {
+          // Check if it's the new format with MIME type
+          if (result.data && result.mimeType) {
+            const ringtoneData = result as RingtoneData;
+            
+            console.log('🗄️ IndexedDB: Ringtone ArrayBuffer loaded successfully', {
+              fileName: ringtoneData.fileName,
+              mimeType: ringtoneData.mimeType,
+              arrayBufferSize: ringtoneData.data.byteLength
+            });
+            
+            resolve(ringtoneData.data);
+          } else {
+            // Handle legacy format (just ArrayBuffer) - for backward compatibility
+            const fileData = result as ArrayBuffer;
+            console.log('🗄️ IndexedDB: Legacy ringtone ArrayBuffer format detected:', {
+              arrayBufferSize: fileData.byteLength
+            });
+            
+            resolve(fileData);
+          }
+        } else {
+          console.log('🗄️ IndexedDB: No ringtone found for ArrayBuffer retrieval');
+          resolve(null);
+        }
+      };
+      
+      request.onerror = (event: Event) => {
+        console.error('🗄️ IndexedDB: Error getting ringtone as ArrayBuffer:', (event.target as IDBRequest).error);
+        reject((event.target as IDBRequest).error);
+      };
+    });
+  }
+
+  async getRingtoneMetadata(): Promise<{ mimeType: string; fileName: string } | null> {
+    console.log('🗄️ IndexedDB: Getting ringtone metadata');
+    
+    if (!this.db) {
+      await this.init();
+    }
+
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.get('custom_ringtone');
+      
+      request.onsuccess = (event: Event) => {
+        const result = (event.target as IDBRequest).result;
+        
+        if (result && result.mimeType && result.fileName) {
+          const ringtoneData = result as RingtoneData;
+          
+          console.log('🗄️ IndexedDB: Ringtone metadata loaded:', {
+            fileName: ringtoneData.fileName,
+            mimeType: ringtoneData.mimeType
+          });
+          
+          resolve({
+            mimeType: ringtoneData.mimeType,
+            fileName: ringtoneData.fileName
+          });
+        } else {
+          console.log('🗄️ IndexedDB: No ringtone metadata found');
+          resolve(null);
+        }
+      };
+      
+      request.onerror = (event: Event) => {
+        console.error('🗄️ IndexedDB: Error getting ringtone metadata:', (event.target as IDBRequest).error);
+        reject((event.target as IDBRequest).error);
+      };
+    });
+  }
+
   async clearRingtone(): Promise<void> {
     console.log('🗄️ IndexedDB: Clearing ringtone');
     
