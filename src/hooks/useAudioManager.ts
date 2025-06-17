@@ -12,7 +12,7 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
     // Only initialize once when component mounts
     if (isInitialized) return;
     
-    console.log('🎵 AudioManager: Initializing file input and IndexedDB');
+    console.log('🎵 AudioManager: Initializing file input and IndexedDB with audio buffer caching');
     
     // Initialize IndexedDB and load existing ringtone
     const initializeAudio = async () => {
@@ -29,6 +29,32 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
             setCustomRingtone(existingRingtone);
             currentBlobUrlRef.current = existingRingtone;
             console.log('🎵 AudioManager: Existing ringtone loaded from IndexedDB');
+            
+            // Pre-cache the existing ringtone's audio buffer
+            try {
+              const { audioBufferCache } = await import('@/utils/audioBufferCache');
+              const arrayBuffer = await indexedDBManager.getRingtoneAsArrayBuffer();
+              
+              if (arrayBuffer) {
+                const ringtoneHash = audioBufferCache.generateRingtoneHash(arrayBuffer);
+                
+                // Check if already cached
+                if (!audioBufferCache.isCacheValidForRingtone(ringtoneHash)) {
+                  console.log('🎵 AudioManager: Pre-caching existing ringtone audio buffer...');
+                  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+                  
+                  audioBufferCache.setCachedAudioBuffer(audioBuffer, ringtoneHash);
+                  await audioContext.close();
+                  
+                  console.log('🎵 AudioManager: Existing ringtone audio buffer pre-cached for instant playback');
+                } else {
+                  console.log('🎵 AudioManager: Existing ringtone already cached');
+                }
+              }
+            } catch (error) {
+              console.warn('🎵 AudioManager: Failed to pre-cache existing ringtone, will cache on first use:', error);
+            }
           }
         }
       } catch (error) {
@@ -153,14 +179,14 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
         currentBlobUrlRef.current = null;
       }
 
-      // Clear from IndexedDB
+      // Clear from IndexedDB (this will also clear the audio buffer cache)
       await indexedDBManager.init();
       await indexedDBManager.clearRingtone();
       
       // Set ringtone to null (will use default beep)
       setCustomRingtone(null);
       
-      console.log('🎵 AudioManager: Custom ringtone cleared successfully');
+      console.log('🎵 AudioManager: Custom ringtone and audio buffer cache cleared successfully');
     } catch (error) {
       console.error('🎵 AudioManager: Error clearing ringtone:', error);
     } finally {

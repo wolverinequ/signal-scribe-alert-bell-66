@@ -8,6 +8,11 @@ export class RingtoneStorage {
   async saveRingtone(file: File): Promise<void> {
     console.log('🗄️ IndexedDB: Saving ringtone', file.name, file.size, file.type);
     
+    // Clear audio buffer cache when new ringtone is saved
+    const { audioBufferCache } = await import('../audioBufferCache');
+    audioBufferCache.clearCache();
+    console.log('🗄️ IndexedDB: Audio buffer cache cleared for new ringtone');
+    
     await this.dbManager.init();
     const db = this.dbManager.getDatabase();
     
@@ -38,8 +43,26 @@ export class RingtoneStorage {
         
         const request = store.put(ringtoneData, 'custom_ringtone');
         
-        request.onsuccess = () => {
+        request.onsuccess = async () => {
           console.log('🗄️ IndexedDB: Ringtone saved successfully with MIME type:', file.type);
+          
+          // Pre-decode and cache the audio buffer for instant future playback
+          try {
+            const { audioBufferCache } = await import('../audioBufferCache');
+            const ringtoneHash = audioBufferCache.generateRingtoneHash(fileData);
+            
+            console.log('🗄️ IndexedDB: Pre-decoding audio buffer for cache...');
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const audioBuffer = await audioContext.decodeAudioData(fileData.slice(0));
+            
+            audioBufferCache.setCachedAudioBuffer(audioBuffer, ringtoneHash);
+            await audioContext.close();
+            
+            console.log('🗄️ IndexedDB: Audio buffer pre-decoded and cached for instant playback');
+          } catch (error) {
+            console.warn('🗄️ IndexedDB: Failed to pre-decode audio, will decode on first use:', error);
+          }
+          
           resolve();
         };
         
@@ -212,6 +235,11 @@ export class RingtoneStorage {
 
   async clearRingtone(): Promise<void> {
     console.log('🗄️ IndexedDB: Clearing ringtone');
+    
+    // Clear audio buffer cache when ringtone is deleted
+    const { audioBufferCache } = await import('../audioBufferCache');
+    audioBufferCache.clearCache();
+    console.log('🗄️ IndexedDB: Audio buffer cache cleared for ringtone deletion');
     
     await this.dbManager.init();
     const db = this.dbManager.getDatabase();
