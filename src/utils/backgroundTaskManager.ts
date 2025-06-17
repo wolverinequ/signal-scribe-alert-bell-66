@@ -41,17 +41,17 @@ export const stopBackgroundTask = () => {
 
 const playBackgroundAudio = async (signal: Signal) => {
   try {
-    console.log('🔔 BackgroundTask: Playing audio for signal in background');
+    console.log('🔔 BackgroundTask: Playing audio for signal in background with direct ArrayBuffer');
     
     // Initialize IndexedDB if needed
     await indexedDBManager.init();
     
-    // Try to get custom ringtone from IndexedDB
-    const customRingtone = await indexedDBManager.getRingtone();
+    // Try to get custom ringtone ArrayBuffer from IndexedDB directly
+    const customRingtoneArrayBuffer = await indexedDBManager.getRingtoneAsArrayBuffer();
     
-    if (customRingtone) {
-      console.log('🔔 BackgroundTask: Custom ringtone found, playing with Web Audio API');
-      await playCustomRingtoneWithWebAudio(customRingtone);
+    if (customRingtoneArrayBuffer) {
+      console.log('🔔 BackgroundTask: Custom ringtone ArrayBuffer found, playing with Web Audio API (original quality)');
+      await playCustomRingtoneWithWebAudio('custom', undefined);
     } else {
       console.log('🔔 BackgroundTask: No custom ringtone, playing default beep');
       createBeepAudio();

@@ -49,45 +49,49 @@ const isAppInBackground = (): boolean => {
   return document.hidden || document.visibilityState === 'hidden';
 };
 
-// New Web Audio API custom audio player
+// Enhanced Web Audio API player using direct ArrayBuffer
 export const playCustomRingtoneWithWebAudio = async (
   customRingtone: string | null, 
   audioContextsRef?: React.MutableRefObject<AudioContext[]>
 ): Promise<AudioContext | null> => {
-  console.log('🎵 AudioUtils: playCustomRingtoneWithWebAudio called with:', {
-    customRingtone: customRingtone ? `${customRingtone.substring(0, 50)}...` : null,
-    hasCustomRingtone: !!customRingtone,
-    ringtoneType: customRingtone ? (customRingtone.startsWith('data:') ? 'data-url' : 'blob-url') : 'none'
-  });
+  console.log('🎵 AudioUtils: playCustomRingtoneWithWebAudio called with direct ArrayBuffer approach');
 
-  if (!customRingtone || !isValidAudioSource(customRingtone)) {
-    console.warn('🎵 AudioUtils: Invalid or missing audio source for Web Audio API, falling back to beep');
+  if (!customRingtone) {
+    console.warn('🎵 AudioUtils: No custom ringtone provided, falling back to beep');
     createBeepAudio(audioContextsRef);
     return null;
   }
 
   try {
-    console.log('🎵 AudioUtils: Fetching audio data for Web Audio API playback');
+    // Import IndexedDB manager to get ArrayBuffer directly
+    const { indexedDBManager } = await import('./indexedDBUtils');
     
-    // Fetch the blob data
-    const response = await fetch(customRingtone);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
+    console.log('🎵 AudioUtils: Getting audio ArrayBuffer directly from IndexedDB');
+    const audioArrayBuffer = await indexedDBManager.getRingtoneAsArrayBuffer();
+    
+    if (!audioArrayBuffer) {
+      console.warn('🎵 AudioUtils: No ArrayBuffer found in IndexedDB, falling back to beep');
+      createBeepAudio(audioContextsRef);
+      return null;
     }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    console.log('🎵 AudioUtils: Audio data fetched, size:', arrayBuffer.byteLength);
 
-    // Create audio context
+    console.log('🎵 AudioUtils: ArrayBuffer retrieved directly, size:', audioArrayBuffer.byteLength);
+
+    // Get original audio metadata for optimal playback
+    const metadata = await indexedDBManager.getRingtoneMetadata();
+    console.log('🎵 AudioUtils: Audio metadata:', metadata);
+
+    // Create audio context with optimal settings
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     
-    // Decode audio data
-    console.log('🎵 AudioUtils: Decoding audio buffer...');
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    console.log('🎵 AudioUtils: Audio buffer decoded successfully:', {
+    // Decode audio data directly from ArrayBuffer
+    console.log('🎵 AudioUtils: Decoding audio buffer directly from ArrayBuffer...');
+    const audioBuffer = await audioContext.decodeAudioData(audioArrayBuffer.slice(0));
+    console.log('🎵 AudioUtils: Audio buffer decoded successfully from ArrayBuffer:', {
       duration: audioBuffer.duration,
       channels: audioBuffer.numberOfChannels,
-      sampleRate: audioBuffer.sampleRate
+      sampleRate: audioBuffer.sampleRate,
+      originalMetadata: metadata
     });
 
     // Create buffer source and connect to destination
@@ -98,12 +102,12 @@ export const playCustomRingtoneWithWebAudio = async (
     source.connect(gainNode);
     gainNode.connect(audioContext.destination);
     
-    // Set volume
+    // Set volume to match HTML5 Audio API levels
     gainNode.gain.value = 0.8;
     
-    // Play audio
+    // Play audio with original quality
     source.start(0);
-    console.log('🎵 AudioUtils: Custom ringtone playback started with Web Audio API');
+    console.log('🎵 AudioUtils: Custom ringtone playback started with direct ArrayBuffer (original quality preserved)');
     
     // Store audio context for cleanup tracking if ref is provided
     if (audioContextsRef) {
@@ -114,7 +118,7 @@ export const playCustomRingtoneWithWebAudio = async (
     return audioContext;
     
   } catch (error) {
-    console.error('🎵 AudioUtils: Error playing custom ringtone with Web Audio API:', error);
+    console.error('🎵 AudioUtils: Error playing custom ringtone with direct ArrayBuffer:', error);
     console.log('🎵 AudioUtils: Falling back to default beep');
     
     // Fallback to default beep
@@ -135,7 +139,7 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
   const isBackground = isAppInBackground();
   
   if (isBackground) {
-    console.log('🎵 AudioUtils: App is in background, using Web Audio API');
+    console.log('🎵 AudioUtils: App is in background, using Web Audio API with direct ArrayBuffer');
     return playCustomRingtoneWithWebAudio(customRingtone, audioContextsRef);
   }
 
