@@ -24,6 +24,21 @@ export const parseSignals = (text: string): Signal[] => {
   return signals;
 };
 
+export const hasSignalTimePassed = (signal: Signal, antidelaySeconds: number = 0): boolean => {
+  const now = new Date();
+  const [signalHours, signalMinutes] = signal.timestamp.split(':').map(Number);
+  
+  // Create signal date for today
+  const signalDate = new Date();
+  signalDate.setHours(signalHours, signalMinutes, 0, 0);
+  
+  // Calculate target time with antidelay (when signal should trigger)
+  const targetTime = new Date(signalDate.getTime() - (antidelaySeconds * 1000));
+  
+  // Signal time has passed if current time is after the target trigger time
+  return now > targetTime;
+};
+
 export const checkSignalTime = (signal: Signal, antidelaySeconds: number = 0): boolean => {
   const now = new Date();
   const currentHours = now.getHours();

@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Signal } from '@/types/signal';
-import { checkSignalTime } from '@/utils/signalUtils';
+import { checkSignalTime, hasSignalTimePassed } from '@/utils/signalUtils';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
 
@@ -59,7 +59,7 @@ export const useRingManager = (
     onSignalTriggered(signal);
   };
 
-  // Check signals every second - only restart when signals or antidelay changes
+  // Check signals every second - only monitor future signals
   useEffect(() => {
     console.log('🔔 RingManager: Signal monitoring effect triggered');
     
@@ -69,11 +69,29 @@ export const useRingManager = (
       console.log('🔔 RingManager: Signal monitoring interval cleared');
     }
 
-    if (savedSignals.length > 0) {
-      console.log('🔔 RingManager: Starting signal monitoring interval for', savedSignals.length, 'signals');
+    // Filter out past signals that shouldn't be monitored
+    const futureSignals = savedSignals.filter(signal => {
+      const isPast = hasSignalTimePassed(signal, antidelaySeconds);
+      const isTriggered = signal.triggered;
+      const shouldMonitor = !isPast && !isTriggered;
+      
+      if (isPast && !isTriggered) {
+        console.log('🔔 RingManager: Skipping past untriggered signal:', {
+          timestamp: signal.timestamp,
+          asset: signal.asset,
+          isPast,
+          isTriggered
+        });
+      }
+      
+      return shouldMonitor;
+    });
+
+    if (futureSignals.length > 0) {
+      console.log('🔔 RingManager: Starting signal monitoring interval for', futureSignals.length, 'future signals out of', savedSignals.length, 'total signals');
       
       intervalRef.current = setInterval(() => {
-        savedSignals.forEach(signal => {
+        futureSignals.forEach(signal => {
           if (checkSignalTime(signal, antidelaySeconds)) {
             console.log('🔔 RingManager: Signal time matched, triggering ring:', signal);
             triggerRing(signal);
@@ -81,7 +99,7 @@ export const useRingManager = (
         });
       }, 1000);
     } else {
-      console.log('🔔 RingManager: No signals to monitor');
+      console.log('🔔 RingManager: No future signals to monitor out of', savedSignals.length, 'total signals');
     }
 
     return () => {

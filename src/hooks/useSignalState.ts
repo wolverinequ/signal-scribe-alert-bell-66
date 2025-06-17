@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Signal } from '@/types/signal';
-import { parseSignals } from '@/utils/signalUtils';
+import { parseSignals, hasSignalTimePassed } from '@/utils/signalUtils';
 import { 
   saveSignalsToStorage, 
   loadSignalsFromStorage, 
@@ -39,31 +39,44 @@ export const useSignalState = () => {
     saveAntidelayToStorage(antidelaySeconds);
   }, [antidelaySeconds]);
 
-  // Save signals handler - with state isolation
+  // Save signals handler - with intelligent past/future signal handling
   const handleSaveSignals = () => {
     setSaveButtonPressed(true);
     setTimeout(() => setSaveButtonPressed(false), 200);
     
     const signals = parseSignals(signalsText);
     
-    // Clear all triggered states for new signals to ensure fresh state
-    const freshSignals = signals.map(signal => ({
-      ...signal,
-      triggered: false
-    }));
-    
-    console.log('📊 Saving new signals with fresh state:', {
-      newSignalsCount: freshSignals.length,
-      previousSignalsCount: savedSignals.length,
-      freshSignals: freshSignals.map(s => ({ timestamp: s.timestamp, triggered: s.triggered }))
+    // Process signals based on whether their time has passed
+    const processedSignals = signals.map(signal => {
+      const timePassed = hasSignalTimePassed(signal, antidelaySeconds);
+      return {
+        ...signal,
+        triggered: timePassed // Mark past signals as triggered, future ones as untriggered
+      };
     });
     
-    setSavedSignals(freshSignals);
-    saveSignalsToStorage(freshSignals);
+    // Separate for logging
+    const pastSignals = processedSignals.filter(s => s.triggered);
+    const futureSignals = processedSignals.filter(s => !s.triggered);
     
-    // Schedule notifications for the new signals
-    if (freshSignals.length > 0) {
-      scheduleAllSignalNotifications(freshSignals);
+    console.log('📊 Saving new signals with intelligent state handling:', {
+      totalSignalsCount: processedSignals.length,
+      pastSignalsCount: pastSignals.length,
+      futureSignalsCount: futureSignals.length,
+      antidelaySeconds,
+      pastSignals: pastSignals.map(s => ({ timestamp: s.timestamp, triggered: s.triggered })),
+      futureSignals: futureSignals.map(s => ({ timestamp: s.timestamp, triggered: s.triggered }))
+    });
+    
+    setSavedSignals(processedSignals);
+    saveSignalsToStorage(processedSignals);
+    
+    // Only schedule notifications for future signals
+    if (futureSignals.length > 0) {
+      console.log('📊 Scheduling notifications for', futureSignals.length, 'future signals');
+      scheduleAllSignalNotifications(futureSignals);
+    } else {
+      console.log('📊 No future signals to schedule notifications for');
     }
   };
 

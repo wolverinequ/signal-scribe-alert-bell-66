@@ -2,7 +2,7 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Signal } from '@/types/signal';
 import { loadSignalsFromStorage, loadAntidelayFromStorage } from './signalStorage';
-import { checkSignalTime } from './signalUtils';
+import { checkSignalTime, hasSignalTimePassed } from './signalUtils';
 
 let backgroundCheckInterval: NodeJS.Timeout | undefined;
 
@@ -43,14 +43,21 @@ const checkSignalsInBackground = async () => {
     const signals = loadSignalsFromStorage();
     const antidelaySeconds = loadAntidelayFromStorage();
     
-    for (const signal of signals) {
+    // Only check future signals that haven't been triggered
+    const futureSignals = signals.filter(signal => {
+      const isPast = hasSignalTimePassed(signal, antidelaySeconds);
+      const isTriggered = signal.triggered;
+      return !isPast && !isTriggered;
+    });
+    
+    for (const signal of futureSignals) {
       if (checkSignalTime(signal, antidelaySeconds)) {
         await triggerLocalNotification(signal);
         
         // Mark signal as triggered and save back to storage
         signal.triggered = true;
         const updatedSignals = signals.map(s => 
-          s === signal ? { ...s, triggered: true } : s
+          s.timestamp === signal.timestamp ? { ...s, triggered: true } : s
         );
         // Note: We can't import saveSignalsToStorage here due to circular dependency
         // The signal will be marked as triggered when app returns to foreground
@@ -86,7 +93,7 @@ const triggerLocalNotification = async (signal: Signal) => {
   }
 };
 
-// Schedule notifications in advance for all signals
+// Schedule notifications in advance for future signals only
 export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
   try {
     const antidelaySeconds = loadAntidelayFromStorage();
@@ -95,8 +102,13 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
     // Cancel existing notifications first
     await LocalNotifications.cancel({ notifications: [] });
     
-    const notifications = signals
-      .filter(signal => !signal.triggered)
+    // Only schedule for future signals that haven't been triggered
+    const futureSignals = signals.filter(signal => {
+      const isPast = hasSignalTimePassed(signal, antidelaySeconds);
+      return !isPast && !signal.triggered;
+    });
+    
+    const notifications = futureSignals
       .map((signal, index) => {
         const [hours, minutes] = signal.timestamp.split(':').map(Number);
         const signalTime = new Date();
@@ -128,7 +140,9 @@ export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
       await LocalNotifications.schedule({
         notifications: notifications as any[]
       });
-      console.log(`Scheduled ${notifications.length} notifications`);
+      console.log(`Scheduled ${notifications.length} notifications for future signals`);
+    } else {
+      console.log('No future signals to schedule notifications for');
     }
   } catch (error) {
     console.error('Failed to schedule signal notifications:', error);
