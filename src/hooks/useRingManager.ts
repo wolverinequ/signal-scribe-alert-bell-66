@@ -19,13 +19,20 @@ export const useRingManager = (
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const audioContextsRef = useRef<AudioContext[]>([]);
+  const currentRingtoneRef = useRef<string | null>(customRingtone);
+
+  // Update ringtone reference without restarting interval
+  useEffect(() => {
+    currentRingtoneRef.current = customRingtone;
+    console.log('🔔 RingManager: Ringtone updated without restarting interval:', customRingtone ? 'custom' : 'default');
+  }, [customRingtone]);
 
   // Ring notification
   const triggerRing = async (signal: Signal) => {
     console.log('🔔 RingManager: Triggering ring for signal:', {
       signal,
-      customRingtoneUrl: customRingtone,
-      hasCustomRingtone: !!customRingtone
+      customRingtoneUrl: currentRingtoneRef.current,
+      hasCustomRingtone: !!currentRingtoneRef.current
     });
     
     setIsRinging(true);
@@ -41,8 +48,8 @@ export const useRingManager = (
     }
 
     // Play custom ringtone or default beep and track audio instances
-    console.log('🔔 RingManager: About to play audio with ringtone:', customRingtone);
-    const audio = await playCustomRingtone(customRingtone, audioContextsRef);
+    console.log('🔔 RingManager: About to play audio with ringtone:', currentRingtoneRef.current);
+    const audio = await playCustomRingtone(currentRingtoneRef.current, audioContextsRef);
     if (audio instanceof HTMLAudioElement) {
       audioInstancesRef.current.push(audio);
       console.log('🔔 RingManager: Audio instance added to tracking array');
@@ -52,13 +59,20 @@ export const useRingManager = (
     onSignalTriggered(signal);
   };
 
-  // Check signals every second for precise timing using cached data
+  // Check signals every second - only restart when signals or antidelay changes
   useEffect(() => {
+    console.log('🔔 RingManager: Signal monitoring effect triggered');
+    
+    // Clear existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      console.log('🔔 RingManager: Signal monitoring interval cleared');
+    }
+
     if (savedSignals.length > 0) {
-      console.log('🔔 RingManager: Starting signal monitoring interval with custom ringtone:', customRingtone);
+      console.log('🔔 RingManager: Starting signal monitoring interval for', savedSignals.length, 'signals');
       
       intervalRef.current = setInterval(() => {
-        // Use the savedSignals prop directly instead of loading from storage
         savedSignals.forEach(signal => {
           if (checkSignalTime(signal, antidelaySeconds)) {
             console.log('🔔 RingManager: Signal time matched, triggering ring:', signal);
@@ -66,15 +80,17 @@ export const useRingManager = (
           }
         });
       }, 1000);
-
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          console.log('🔔 RingManager: Signal monitoring interval cleared');
-        }
-      };
+    } else {
+      console.log('🔔 RingManager: No signals to monitor');
     }
-  }, [savedSignals, customRingtone, antidelaySeconds]);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        console.log('🔔 RingManager: Signal monitoring interval cleared on cleanup');
+      }
+    };
+  }, [savedSignals, antidelaySeconds]); // Removed customRingtone from dependencies
 
   // Ring off button handler - stops ALL audio immediately
   const handleRingOff = () => {

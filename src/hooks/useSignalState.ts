@@ -60,6 +60,14 @@ export const useSignalState = () => {
     );
     setSavedSignals(updatedSignals);
     saveSignalsToStorage(updatedSignals);
+    console.log('📊 Signal marked as triggered and saved:', signal);
+  };
+
+  // Custom handler for updating ringtone that preserves signal states
+  const handleCustomRingtoneChange = (newRingtone: string | null) => {
+    console.log('📊 Custom ringtone changing from', customRingtone, 'to', newRingtone);
+    setCustomRingtone(newRingtone);
+    // Note: We don't reset or resave signals here to preserve their triggered states
   };
 
   return {
@@ -71,7 +79,7 @@ export const useSignalState = () => {
     setAntidelaySeconds,
     saveButtonPressed,
     customRingtone,
-    setCustomRingtone,
+    setCustomRingtone: handleCustomRingtoneChange,
     handleSaveSignals,
     updateSignalTriggered
   };
