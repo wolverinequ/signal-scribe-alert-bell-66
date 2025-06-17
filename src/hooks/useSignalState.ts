@@ -39,28 +39,74 @@ export const useSignalState = () => {
     saveAntidelayToStorage(antidelaySeconds);
   }, [antidelaySeconds]);
 
-  // Save signals handler
+  // Save signals handler - with state isolation
   const handleSaveSignals = () => {
     setSaveButtonPressed(true);
     setTimeout(() => setSaveButtonPressed(false), 200);
     
     const signals = parseSignals(signalsText);
-    setSavedSignals(signals);
-    saveSignalsToStorage(signals);
+    
+    // Clear all triggered states for new signals to ensure fresh state
+    const freshSignals = signals.map(signal => ({
+      ...signal,
+      triggered: false
+    }));
+    
+    console.log('📊 Saving new signals with fresh state:', {
+      newSignalsCount: freshSignals.length,
+      previousSignalsCount: savedSignals.length,
+      freshSignals: freshSignals.map(s => ({ timestamp: s.timestamp, triggered: s.triggered }))
+    });
+    
+    setSavedSignals(freshSignals);
+    saveSignalsToStorage(freshSignals);
     
     // Schedule notifications for the new signals
-    if (signals.length > 0) {
-      scheduleAllSignalNotifications(signals);
+    if (freshSignals.length > 0) {
+      scheduleAllSignalNotifications(freshSignals);
     }
   };
 
-  const updateSignalTriggered = (signal: Signal) => {
-    const updatedSignals = savedSignals.map(s => 
-      s === signal ? { ...s, triggered: true } : s
-    );
+  // Fixed updateSignalTriggered using timestamp-based comparison
+  const updateSignalTriggered = (targetSignal: Signal) => {
+    console.log('📊 Updating signal triggered state:', {
+      targetTimestamp: targetSignal.timestamp,
+      targetAsset: targetSignal.asset,
+      targetDirection: targetSignal.direction,
+      currentSignalsCount: savedSignals.length
+    });
+    
+    const updatedSignals = savedSignals.map(s => {
+      // Use timestamp comparison instead of object reference
+      if (s.timestamp === targetSignal.timestamp) {
+        console.log('📊 Found matching signal by timestamp:', {
+          timestamp: s.timestamp,
+          wasTriggered: s.triggered,
+          nowTriggered: true
+        });
+        return { ...s, triggered: true };
+      }
+      return s;
+    });
+    
+    // Verify the update was successful
+    const updatedSignal = updatedSignals.find(s => s.timestamp === targetSignal.timestamp);
+    if (updatedSignal && updatedSignal.triggered) {
+      console.log('📊 Signal successfully marked as triggered:', {
+        timestamp: updatedSignal.timestamp,
+        triggered: updatedSignal.triggered
+      });
+    } else {
+      console.warn('📊 Warning: Signal update may have failed:', {
+        targetTimestamp: targetSignal.timestamp,
+        foundSignal: !!updatedSignal,
+        isTriggered: updatedSignal?.triggered
+      });
+    }
+    
     setSavedSignals(updatedSignals);
     saveSignalsToStorage(updatedSignals);
-    console.log('📊 Signal marked as triggered and saved:', signal);
+    console.log('📊 Signal marked as triggered and saved to storage');
   };
 
   // Custom handler for updating ringtone that preserves signal states
