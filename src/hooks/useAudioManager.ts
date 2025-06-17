@@ -137,8 +137,40 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
     }
   };
 
+  const clearCustomRingtone = async () => {
+    console.log('🎵 AudioManager: Clearing custom ringtone');
+    
+    if (isLoading) {
+      console.log('🎵 AudioManager: Another operation in progress, skipping clear');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Revoke current blob URL if it exists
+      if (currentBlobUrlRef.current) {
+        URL.revokeObjectURL(currentBlobUrlRef.current);
+        currentBlobUrlRef.current = null;
+      }
+
+      // Clear from IndexedDB
+      await indexedDBManager.init();
+      await indexedDBManager.clearRingtone();
+      
+      // Set ringtone to null (will use default beep)
+      setCustomRingtone(null);
+      
+      console.log('🎵 AudioManager: Custom ringtone cleared successfully');
+    } catch (error) {
+      console.error('🎵 AudioManager: Error clearing ringtone:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     triggerRingtoneSelection,
+    clearCustomRingtone,
     isLoading
   };
 };

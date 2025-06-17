@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { scheduleAllSignalNotifications } from '@/utils/backgroundTaskManager';
 import { Signal } from '@/types/signal';
@@ -7,9 +6,11 @@ export const useAntidelayManager = (
   savedSignals: Signal[],
   antidelaySeconds: number,
   setAntidelaySeconds: (seconds: number) => void,
-  triggerRingtoneSelection: () => void
+  triggerRingtoneSelection: () => void,
+  clearCustomRingtone: () => Promise<void>
 ) => {
   const [showAntidelayDialog, setShowAntidelayDialog] = useState(false);
+  const [showSoundSelectionDialog, setShowSoundSelectionDialog] = useState(false);
   const [antidelayInput, setAntidelayInput] = useState('');
   const [setRingButtonPressed, setSetRingButtonPressed] = useState(false);
   
@@ -36,7 +37,8 @@ export const useAntidelayManager = (
   const handleSetRingMouseUp = (e: React.MouseEvent | React.TouchEvent) => {
     console.log('🎛️ AntidelayManager: Set Ring button mouse up', {
       isLongPress: isLongPressRef.current,
-      showingDialog: showAntidelayDialog
+      showingAntidelayDialog: showAntidelayDialog,
+      showingSoundDialog: showSoundSelectionDialog
     });
     
     e.preventDefault();
@@ -48,10 +50,10 @@ export const useAntidelayManager = (
       longPressTimerRef.current = null;
     }
     
-    // If it wasn't a long press and dialog is not showing, trigger ringtone selection
-    if (!isLongPressRef.current && !showAntidelayDialog) {
-      console.log('🎛️ AntidelayManager: Short press detected - triggering ringtone selection');
-      triggerRingtoneSelection();
+    // If it wasn't a long press and no dialogs are showing, show sound selection dialog
+    if (!isLongPressRef.current && !showAntidelayDialog && !showSoundSelectionDialog) {
+      console.log('🎛️ AntidelayManager: Short press detected - showing sound selection dialog');
+      setShowSoundSelectionDialog(true);
     }
   };
 
@@ -89,8 +91,27 @@ export const useAntidelayManager = (
     setAntidelayInput('');
   };
 
+  // Sound selection dialog handlers
+  const handleUseDefaultSound = async () => {
+    console.log('🎛️ AntidelayManager: Use default sound selected');
+    await clearCustomRingtone();
+    setShowSoundSelectionDialog(false);
+  };
+
+  const handleSetCustomSound = () => {
+    console.log('🎛️ AntidelayManager: Set custom sound selected');
+    setShowSoundSelectionDialog(false);
+    triggerRingtoneSelection();
+  };
+
+  const handleSoundSelectionCancel = () => {
+    console.log('🎛️ AntidelayManager: Sound selection cancelled');
+    setShowSoundSelectionDialog(false);
+  };
+
   return {
     showAntidelayDialog,
+    showSoundSelectionDialog,
     antidelayInput,
     setAntidelayInput,
     setRingButtonPressed,
@@ -98,6 +119,9 @@ export const useAntidelayManager = (
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
-    handleAntidelayCancel
+    handleAntidelayCancel,
+    handleUseDefaultSound,
+    handleSetCustomSound,
+    handleSoundSelectionCancel
   };
 };
