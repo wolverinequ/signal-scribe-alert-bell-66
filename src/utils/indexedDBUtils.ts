@@ -1,3 +1,4 @@
+
 import { Signal } from '@/types/signal';
 
 interface SignalData {
@@ -152,9 +153,9 @@ class IndexedDBManager {
         };
       };
       
-      reader.onerror = (event) => {
-        console.error('🗄️ IndexedDB: Error reading file:', (event.target as IDBRequest).error);
-        reject((event.target as IDBRequest).error);
+      reader.onerror = () => {
+        console.error('🗄️ IndexedDB: Error reading file');
+        reject(new Error('Error reading file'));
       };
       
       reader.readAsArrayBuffer(file);
@@ -224,12 +225,21 @@ class IndexedDBManager {
       throw new Error('Database not initialized');
     }
 
-    const transaction = this.db.transaction([this.storeName], 'readwrite');
-    const store = transaction.objectStore(this.storeName);
-    
-    await store.delete('custom_ringtone');
-    
-    console.log('🗄️ IndexedDB: Ringtone cleared successfully');
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.delete('custom_ringtone');
+      
+      request.onsuccess = () => {
+        console.log('🗄️ IndexedDB: Ringtone cleared successfully');
+        resolve();
+      };
+      
+      request.onerror = (event: Event) => {
+        console.error('🗄️ IndexedDB: Error clearing ringtone:', (event.target as IDBRequest).error);
+        reject((event.target as IDBRequest).error);
+      };
+    });
   }
 }
 
