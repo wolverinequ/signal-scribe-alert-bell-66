@@ -1,3 +1,4 @@
+
 const DB_NAME = 'SignalTrackerDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'ringtones';
@@ -21,6 +22,10 @@ const SUPPORTED_AUDIO_FORMATS = [
   'audio/aac',
   'audio/webm'
 ];
+
+// Cache for blob URLs to prevent recreating them
+let cachedBlobUrl: string | null = null;
+let cachedDataHash: string | null = null;
 
 const validateAudioFormat = (file: File): boolean => {
   console.log('🗄️ IndexedDB: Validating audio format:', file.type);
@@ -49,6 +54,16 @@ const validateAudioFormat = (file: File): boolean => {
   
   console.warn('🗄️ IndexedDB: Unsupported audio format:', file.type, 'Extension:', extension);
   return false;
+};
+
+const createDataHash = (data: ArrayBuffer): string => {
+  // Simple hash based on size and first few bytes
+  const view = new Uint8Array(data);
+  let hash = data.byteLength.toString();
+  if (view.length > 0) hash += view[0].toString();
+  if (view.length > 1) hash += view[1].toString();
+  if (view.length > 2) hash += view[2].toString();
+  return hash;
 };
 
 const testAudioPlayback = async (blobUrl: string): Promise<boolean> => {
@@ -105,6 +120,11 @@ export class IndexedDBManager {
   private db: IDBDatabase | null = null;
 
   async init(): Promise<void> {
+    if (this.db) {
+      console.log('🗄️ IndexedDB: Database already initialized');
+      return;
+    }
+
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -147,6 +167,13 @@ export class IndexedDBManager {
       reader.onload = async () => {
         try {
           const audioData = reader.result as ArrayBuffer;
+          
+          // Clear cached blob URL since we're saving new data
+          if (cachedBlobUrl) {
+            URL.revokeObjectURL(cachedBlobUrl);
+            cachedBlobUrl = null;
+            cachedDataHash = null;
+          }
           
           // Ensure we have a valid MIME type
           let fileType = file.type;
@@ -220,6 +247,14 @@ export class IndexedDBManager {
         if (request.result) {
           try {
             const ringtoneData: RingtoneData = request.result;
+            const dataHash = createDataHash(ringtoneData.audioData);
+            
+            // Return cached blob URL if data hasn't changed
+            if (cachedBlobUrl && cachedDataHash === dataHash) {
+              console.log('🗄️ IndexedDB: Returning cached blob URL');
+              resolve(cachedBlobUrl);
+              return;
+            }
             
             console.log('🗄️ IndexedDB: Creating blob with type:', ringtoneData.fileType);
             const blob = new Blob([ringtoneData.audioData], { type: ringtoneData.fileType });
@@ -243,6 +278,13 @@ export class IndexedDBManager {
               return;
             }
             
+            // Cache the blob URL and data hash
+            if (cachedBlobUrl && cachedBlobUrl !== url) {
+              URL.revokeObjectURL(cachedBlobUrl);
+            }
+            cachedBlobUrl = url;
+            cachedDataHash = dataHash;
+            
             console.log('🗄️ IndexedDB: Ringtone retrieved and validated successfully');
             resolve(url);
           } catch (error) {
@@ -265,6 +307,13 @@ export class IndexedDBManager {
   async clearRingtone(): Promise<void> {
     if (!this.db) {
       await this.init();
+    }
+
+    // Clear cached blob URL
+    if (cachedBlobUrl) {
+      URL.revokeObjectURL(cachedBlobUrl);
+      cachedBlobUrl = null;
+      cachedDataHash = null;
     }
 
     return new Promise((resolve, reject) => {

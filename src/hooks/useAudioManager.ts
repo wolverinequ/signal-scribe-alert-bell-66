@@ -1,42 +1,59 @@
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { indexedDBManager } from '@/utils/indexedDBUtils';
 
 export const useAudioManager = (setCustomRingtone: (url: string | null) => void) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const currentBlobUrlRef = useRef<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    // Only initialize once when component mounts
+    if (isInitialized) return;
+    
     console.log('🎵 AudioManager: Initializing file input and IndexedDB');
     
     // Initialize IndexedDB and load existing ringtone
     const initializeAudio = async () => {
+      if (isLoading) return; // Prevent multiple simultaneous operations
+      
+      setIsLoading(true);
       try {
         await indexedDBManager.init();
-        const existingRingtone = await indexedDBManager.getRingtone();
-        if (existingRingtone) {
-          setCustomRingtone(existingRingtone);
-          currentBlobUrlRef.current = existingRingtone;
-          console.log('🎵 AudioManager: Existing ringtone loaded from IndexedDB');
+        
+        // Only load if we don't already have a ringtone
+        if (!currentBlobUrlRef.current) {
+          const existingRingtone = await indexedDBManager.getRingtone();
+          if (existingRingtone) {
+            setCustomRingtone(existingRingtone);
+            currentBlobUrlRef.current = existingRingtone;
+            console.log('🎵 AudioManager: Existing ringtone loaded from IndexedDB');
+          }
         }
       } catch (error) {
         console.error('🎵 AudioManager: Failed to initialize IndexedDB:', error);
+      } finally {
+        setIsLoading(false);
+        setIsInitialized(true);
       }
     };
     
     initializeAudio();
     
-    // Create hidden file input for ringtone selection
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'audio/*';
-    fileInput.style.display = 'none';
-    fileInput.addEventListener('change', handleRingtoneSelect);
-    document.body.appendChild(fileInput);
-    fileInputRef.current = fileInput;
+    // Create hidden file input for ringtone selection - only once
+    if (!fileInputRef.current) {
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'audio/*';
+      fileInput.style.display = 'none';
+      fileInput.addEventListener('change', handleRingtoneSelect);
+      document.body.appendChild(fileInput);
+      fileInputRef.current = fileInput;
+    }
 
     return () => {
-      // Clean up blob URL and file input
+      // Clean up blob URL and file input only on unmount
       if (currentBlobUrlRef.current) {
         URL.revokeObjectURL(currentBlobUrlRef.current);
       }
@@ -45,7 +62,7 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
         console.log('🎵 AudioManager: File input cleaned up');
       }
     };
-  }, [setCustomRingtone]);
+  }, []); // Remove setCustomRingtone from dependencies to break the loop
 
   const handleRingtoneSelect = async (event: Event) => {
     const target = event.target as HTMLInputElement;
@@ -58,6 +75,12 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
         type: file.type
       });
 
+      if (isLoading) {
+        console.log('🎵 AudioManager: Another operation in progress, skipping');
+        return;
+      }
+
+      setIsLoading(true);
       try {
         // Revoke previous blob URL if it exists
         if (currentBlobUrlRef.current) {
@@ -92,6 +115,8 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
         }
         
         setCustomRingtone(null);
+      } finally {
+        setIsLoading(false);
       }
     } else {
       console.log('🎵 AudioManager: No file selected');
@@ -113,6 +138,7 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
   };
 
   return {
-    triggerRingtoneSelection
+    triggerRingtoneSelection,
+    isLoading
   };
 };
