@@ -75,9 +75,22 @@ export const playCustomRingtoneWithWebAudio = async (
     // Set volume to match HTML5 Audio API levels
     gainNode.gain.value = 0.8;
     
-    // Play audio with original quality (instant start due to cached buffer)
+    // Calculate playback duration - limit to 30 seconds if audio is longer
+    const maxDuration = 30; // 30 seconds limit
+    const playbackDuration = Math.min(audioBuffer.duration, maxDuration);
+    
+    console.log('🎵 AudioUtils: Audio duration limits:', {
+      originalDuration: audioBuffer.duration,
+      maxAllowedDuration: maxDuration,
+      actualPlaybackDuration: playbackDuration,
+      isLimited: audioBuffer.duration > maxDuration
+    });
+    
+    // Play audio with duration limit
     source.start(0);
-    console.log('🎵 AudioUtils: Custom ringtone playback started with cached buffer (INSTANT - original quality preserved)');
+    source.stop(playbackContext.currentTime + playbackDuration);
+    
+    console.log('🎵 AudioUtils: Custom ringtone playback started with cached buffer (INSTANT - original quality preserved) - Duration limited to', playbackDuration, 'seconds');
     
     // Store audio context for cleanup tracking if ref is provided
     if (audioContextsRef) {

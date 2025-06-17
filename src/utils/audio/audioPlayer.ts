@@ -42,10 +42,27 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
       });
       
       audio.addEventListener('loadedmetadata', () => {
+        const maxDuration = 30; // 30 seconds limit
+        const actualDuration = Math.min(audio.duration, maxDuration);
+        
         console.log('🎵 AudioUtils: Custom audio metadata loaded:', {
-          duration: audio.duration,
+          originalDuration: audio.duration,
+          maxAllowedDuration: maxDuration,
+          actualPlaybackDuration: actualDuration,
+          isLimited: audio.duration > maxDuration,
           readyState: audio.readyState
         });
+        
+        // Set up automatic stop after 30 seconds if audio is longer
+        if (audio.duration > maxDuration) {
+          setTimeout(() => {
+            if (!audio.paused && !audio.ended) {
+              console.log('🎵 AudioUtils: Stopping audio after 30 second limit');
+              audio.pause();
+              audio.currentTime = 0;
+            }
+          }, maxDuration * 1000);
+        }
       });
       
       audio.addEventListener('playing', () => {
