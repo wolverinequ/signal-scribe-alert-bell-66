@@ -64,24 +64,11 @@ export const useRingManager = (
     setRingOffButtonPressed(true);
     setTimeout(() => setRingOffButtonPressed(false), 200);
     
-    // Stop ALL audio instances immediately with error handling for invalid blob URLs
+    // Stop ALL audio instances immediately (Step 4: cleanup)
     audioInstancesRef.current.forEach((audio) => {
       if (audio) {
-        try {
-          // Remove error event listeners first to prevent triggering alerts
-          audio.onerror = null;
-          audio.onabort = null;
-          
-          audio.pause();
-          audio.currentTime = 0;
-          
-          // Clear the source to prevent further errors
-          audio.src = '';
-          audio.load();
-        } catch (error) {
-          // Silently ignore errors when stopping audio (e.g., invalid blob URLs)
-          console.log('🔔 RingManager: Audio cleanup error (ignored):', error);
-        }
+        audio.pause();
+        audio.currentTime = 0;
       }
     });
     audioInstancesRef.current = [];
@@ -94,24 +81,11 @@ export const useRingManager = (
     });
     audioContextsRef.current = [];
     
-    // Additional cleanup: Stop any remaining audio elements on the page with error handling
+    // Additional cleanup: Stop any remaining audio elements on the page
     const allAudioElements = document.querySelectorAll('audio');
     allAudioElements.forEach((audio) => {
-      try {
-        // Remove error handlers to prevent alerts during cleanup
-        audio.onerror = null;
-        audio.onabort = null;
-        
-        audio.pause();
-        audio.currentTime = 0;
-        
-        // Clear source to prevent blob URL errors
-        audio.src = '';
-        audio.load();
-      } catch (error) {
-        // Silently ignore cleanup errors
-        console.log('🔔 RingManager: Global audio cleanup error (ignored):', error);
-      }
+      audio.pause();
+      audio.currentTime = 0;
     });
     
     // Stop ringing if currently ringing

@@ -75,25 +75,10 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
         console.log('🎵 AudioUtils: Custom audio is playing');
       });
       
-      // Enhanced error handling to prevent unwanted popups during Ring Off
       audio.addEventListener('error', (e) => {
-        console.log('🎵 AudioUtils: Custom audio error event:', e);
+        console.error('🎵 AudioUtils: Custom audio error event:', e);
         const audioTarget = e.target as HTMLAudioElement;
         const error = audioTarget?.error;
-        
-        // Check if this is likely a Ring Off cleanup scenario
-        const isCleanupError = !audio.src || audio.src === '' || audio.src.startsWith('blob:') && error?.code === 2;
-        
-        if (isCleanupError) {
-          console.log('🎵 AudioUtils: Audio error during cleanup (ignoring popup):', {
-            src: audio.src,
-            error: error?.code,
-            message: error?.message
-          });
-          // Don't show popup for cleanup errors
-          resolve(null);
-          return;
-        }
         
         console.error('🎵 AudioUtils: Audio error details:', {
           error: error,
@@ -116,7 +101,7 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
         const errorMsg = error?.code ? errorMessages[error.code] || `Unknown error code: ${error.code}` : 'Unknown error';
         console.error('🎵 AudioUtils: Error description:', errorMsg);
         
-        // Only show popup for genuine playback errors, not cleanup errors
+        // Instead of fallback, prompt user to select a new ringtone
         console.log('🎵 AudioUtils: Audio playback failed, prompting user to select new ringtone');
         alert('Audio playback failed. Please select a new custom ringtone.');
         resolve(null);
