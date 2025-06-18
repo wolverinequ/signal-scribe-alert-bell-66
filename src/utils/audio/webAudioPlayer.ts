@@ -4,13 +4,18 @@ import { audioBufferCache } from '../audioBufferCache';
 // Enhanced Web Audio API player using cached AudioBuffer for instant playback
 export const playCustomRingtoneWithWebAudio = async (
   customRingtone: string | null, 
-  audioContextsRef?: React.MutableRefObject<AudioContext[]>
+  audioContextsRef?: React.MutableRefObject<AudioContext[]>,
+  isCleanupMode: boolean = false
 ): Promise<AudioContext | null> => {
-  console.log('🎵 AudioUtils: playCustomRingtoneWithWebAudio called with cached buffer optimization');
+  console.log('🎵 AudioUtils: playCustomRingtoneWithWebAudio called with cached buffer optimization', {
+    isCleanupMode
+  });
 
   if (!customRingtone) {
-    console.warn('🎵 AudioUtils: No custom ringtone provided, prompting user to select one');
-    alert('Please select a custom ringtone first by clicking the Set Ring button.');
+    if (!isCleanupMode) {
+      console.warn('🎵 AudioUtils: No custom ringtone provided, prompting user to select one');
+      alert('Please select a custom ringtone first by clicking the Set Ring button.');
+    }
     return null;
   }
 
@@ -22,8 +27,10 @@ export const playCustomRingtoneWithWebAudio = async (
     const audioArrayBuffer = await indexedDBManager.getRingtoneAsArrayBuffer();
     
     if (!audioArrayBuffer) {
-      console.warn('🎵 AudioUtils: No ArrayBuffer found in IndexedDB, prompting user to select ringtone');
-      alert('No custom ringtone found. Please select one by clicking the Set Ring button.');
+      if (!isCleanupMode) {
+        console.warn('🎵 AudioUtils: No ArrayBuffer found in IndexedDB, prompting user to select ringtone');
+        alert('No custom ringtone found. Please select one by clicking the Set Ring button.');
+      }
       return null;
     }
 
@@ -43,21 +50,32 @@ export const playCustomRingtoneWithWebAudio = async (
       // Create audio context for decoding
       const decodingContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
-      // Decode audio data directly from ArrayBuffer
-      console.log('🎵 AudioUtils: Decoding audio buffer from ArrayBuffer...');
-      audioBuffer = await decodingContext.decodeAudioData(audioArrayBuffer.slice(0));
-      
-      // Cache the decoded buffer for future use
-      audioBufferCache.setCachedAudioBuffer(audioBuffer, ringtoneHash);
+      try {
+        // Decode audio data directly from ArrayBuffer
+        console.log('🎵 AudioUtils: Decoding audio buffer from ArrayBuffer...');
+        audioBuffer = await decodingContext.decodeAudioData(audioArrayBuffer.slice(0));
+        
+        // Cache the decoded buffer for future use
+        audioBufferCache.setCachedAudioBuffer(audioBuffer, ringtoneHash);
+        
+        console.log('🎵 AudioUtils: Audio buffer decoded and cached:', {
+          duration: audioBuffer.duration,
+          channels: audioBuffer.numberOfChannels,
+          sampleRate: audioBuffer.sampleRate
+        });
+      } catch (decodeError) {
+        console.error('🎵 AudioUtils: Audio decoding error:', decodeError);
+        
+        if (!isCleanupMode) {
+          alert('Failed to decode audio file. Please select a new custom ringtone.');
+        }
+        
+        await decodingContext.close();
+        return null;
+      }
       
       // Close the decoding context to free resources
       await decodingContext.close();
-      
-      console.log('🎵 AudioUtils: Audio buffer decoded and cached:', {
-        duration: audioBuffer.duration,
-        channels: audioBuffer.numberOfChannels,
-        sampleRate: audioBuffer.sampleRate
-      });
     }
 
     // Create new audio context for playback (always fresh for each playback)
@@ -101,10 +119,15 @@ export const playCustomRingtoneWithWebAudio = async (
     
   } catch (error) {
     console.error('🎵 AudioUtils: Error playing custom ringtone with cached buffer:', error);
-    console.log('🎵 AudioUtils: Prompting user to select new ringtone');
     
-    // Instead of fallback, prompt user to select a new ringtone
-    alert('Failed to play custom ringtone. Please select a new one by clicking the Set Ring button.');
+    // Context-aware error handling
+    if (!isCleanupMode) {
+      console.log('🎵 AudioUtils: Prompting user to select new ringtone');
+      alert('Failed to play custom ringtone. Please select a new one by clicking the Set Ring button.');
+    } else {
+      console.log('🎵 AudioUtils: Suppressing error alert - cleanup mode active');
+    }
+    
     return null;
   }
 };

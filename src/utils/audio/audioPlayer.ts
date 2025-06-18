@@ -2,18 +2,48 @@
 import { isValidAudioSource, isAppInBackground } from './audioValidation';
 import { playCustomRingtoneWithWebAudio } from './webAudioPlayer';
 
-export const playCustomRingtone = (customRingtone: string | null, audioContextsRef?: React.MutableRefObject<AudioContext[]>): Promise<HTMLAudioElement | AudioContext | null> => {
+export const playCustomRingtone = (
+  customRingtone: string | null, 
+  audioContextsRef?: React.MutableRefObject<AudioContext[]>,
+  isCleanupMode: boolean = false
+): Promise<HTMLAudioElement | AudioContext | null> => {
   console.log('🎵 AudioUtils: playCustomRingtone called with:', {
     customRingtone: customRingtone ? `${customRingtone.substring(0, 50)}...` : null,
     hasCustomRingtone: !!customRingtone,
     ringtoneType: customRingtone ? (customRingtone.startsWith('data:') ? 'data-url' : 'blob-url') : 'none',
-    isBackground: isAppInBackground()
+    isBackground: isAppInBackground(),
+    isCleanupMode
   });
 
-  // If no custom ringtone is provided, prompt user to select one
+  // If no custom ringtone is provided, prompt user to select one (only if not in cleanup mode)
   if (!customRingtone) {
-    console.log('🎵 AudioUtils: No custom ringtone provided, prompting user to select one');
-    alert('Please select a custom ringtone first by clicking the Set Ring button.');
+    if (!isCleanupMode) {
+      console.log('🎵 AudioUtils: No custom ringtone provided, prompting user to select one');
+      alert('Please select a custom ringtone first by clicking the Set Ring button.');
+    }
+    return Promise.resolve(null);
+  }
+
+  // Enhanced blob URL validation
+  const isValidBlobUrl = (url: string): boolean => {
+    if (!url.startsWith('blob:')) return false;
+    
+    try {
+      // Check if the blob URL format is valid
+      new URL(url);
+      return true;
+    } catch (error) {
+      console.warn('🎵 AudioUtils: Invalid blob URL format:', url);
+      return false;
+    }
+  };
+
+  // Validate blob URL before proceeding
+  if (!isValidBlobUrl(customRingtone)) {
+    if (!isCleanupMode) {
+      console.warn('🎵 AudioUtils: Invalid blob URL detected, prompting user to select new ringtone');
+      alert('Audio file is no longer valid. Please select a new custom ringtone.');
+    }
     return Promise.resolve(null);
   }
 
@@ -22,7 +52,7 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
   
   if (isBackground) {
     console.log('🎵 AudioUtils: App is in background, using Web Audio API with direct ArrayBuffer');
-    return playCustomRingtoneWithWebAudio(customRingtone, audioContextsRef);
+    return playCustomRingtoneWithWebAudio(customRingtone, audioContextsRef, isCleanupMode);
   }
 
   console.log('🎵 AudioUtils: App is in foreground, using HTML5 Audio API');
@@ -76,18 +106,18 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
       });
       
       audio.addEventListener('error', (e) => {
-        console.error('🎵 AudioUtils: Custom audio error event:', e);
         const audioTarget = e.target as HTMLAudioElement;
         const error = audioTarget?.error;
         
-        console.error('🎵 AudioUtils: Audio error details:', {
+        console.log('🎵 AudioUtils: Custom audio error event detected:', {
           error: error,
           code: error?.code,
           message: error?.message,
           src: audio.src,
           readyState: audio.readyState,
           networkState: audio.networkState,
-          currentTime: audio.currentTime
+          currentTime: audio.currentTime,
+          isCleanupMode
         });
         
         // Map error codes to descriptions
@@ -99,11 +129,22 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
         };
         
         const errorMsg = error?.code ? errorMessages[error.code] || `Unknown error code: ${error.code}` : 'Unknown error';
-        console.error('🎵 AudioUtils: Error description:', errorMsg);
+        console.log('🎵 AudioUtils: Error description:', errorMsg);
         
-        // Instead of fallback, prompt user to select a new ringtone
-        console.log('🎵 AudioUtils: Audio playback failed, prompting user to select new ringtone');
-        alert('Audio playback failed. Please select a new custom ringtone.');
+        // Context-aware error handling - only show alert if not in cleanup mode
+        if (!isCleanupMode) {
+          // Check if this is a blob URL error (common during cleanup)
+          if (error?.code === 2 && audio.src.startsWith('blob:')) {
+            console.log('🎵 AudioUtils: Blob URL network error detected - likely outdated blob URL');
+            alert('Audio file is no longer accessible. Please select a new custom ringtone.');
+          } else {
+            console.log('🎵 AudioUtils: General audio error - prompting user to select new ringtone');
+            alert('Audio playback failed. Please select a new custom ringtone.');
+          }
+        } else {
+          console.log('🎵 AudioUtils: Suppressing error alert - cleanup mode active');
+        }
+        
         resolve(null);
       });
       
@@ -116,15 +157,22 @@ export const playCustomRingtone = (customRingtone: string | null, audioContextsR
         resolve(audio);
       }).catch(err => {
         console.error('🎵 AudioUtils: Error playing custom ringtone:', err);
-        console.log('🎵 AudioUtils: Prompting user to select new ringtone');
         
-        // Instead of fallback, prompt user to select a new ringtone
-        alert('Failed to play custom ringtone. Please select a new one.');
+        // Context-aware error handling
+        if (!isCleanupMode) {
+          console.log('🎵 AudioUtils: Play error - prompting user to select new ringtone');
+          alert('Failed to play custom ringtone. Please select a new one.');
+        } else {
+          console.log('🎵 AudioUtils: Suppressing play error alert - cleanup mode active');
+        }
+        
         resolve(null);
       });
     } else {
-      console.warn('🎵 AudioUtils: Invalid or missing audio source, prompting user to select ringtone');
-      alert('Please select a custom ringtone first by clicking the Set Ring button.');
+      if (!isCleanupMode) {
+        console.warn('🎵 AudioUtils: Invalid or missing audio source, prompting user to select ringtone');
+        alert('Please select a custom ringtone first by clicking the Set Ring button.');
+      }
       resolve(null);
     }
   });
