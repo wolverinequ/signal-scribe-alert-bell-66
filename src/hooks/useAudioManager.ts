@@ -38,6 +38,11 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
         if (!currentBlobUrlRef.current) {
           const existingRingtone = await indexedDBManager.getRingtone();
           if (existingRingtone) {
+            // Clean up old blob URL before setting new one
+            if (currentBlobUrlRef.current) {
+              URL.revokeObjectURL(currentBlobUrlRef.current);
+            }
+            
             setCustomRingtone(existingRingtone);
             currentBlobUrlRef.current = existingRingtone;
             console.log('🎵 AudioManager: Existing ringtone loaded from IndexedDB');
@@ -120,10 +125,14 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
 
       setIsLoading(true);
       try {
-        // Revoke previous blob URL if it exists
+        // Revoke previous blob URL if it exists to prevent memory leaks and invalid references
         if (currentBlobUrlRef.current) {
+          console.log('🎵 AudioManager: Revoking old blob URL to prevent conflicts');
           URL.revokeObjectURL(currentBlobUrlRef.current);
           currentBlobUrlRef.current = null;
+          
+          // Clear old ringtone from state temporarily to prevent using stale blob URLs
+          setCustomRingtone(null);
         }
 
         // Save file to IndexedDB and get blob URL
@@ -196,6 +205,7 @@ export const useAudioManager = (setCustomRingtone: (url: string | null) => void)
     try {
       // Revoke current blob URL if it exists
       if (currentBlobUrlRef.current) {
+        console.log('🎵 AudioManager: Revoking blob URL during clear');
         URL.revokeObjectURL(currentBlobUrlRef.current);
         currentBlobUrlRef.current = null;
       }
