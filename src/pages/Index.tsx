@@ -26,24 +26,26 @@ const Index = () => {
   } = useSignalTracker();
 
   return (
-    <div className="h-screen bg-background flex flex-col select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <SignalInput
-          signalsText={signalsText}
-          onSignalsTextChange={setSignalsText}
-        />
-        
-        <ControlPanel
-          signalsText={signalsText}
-          saveButtonPressed={saveButtonPressed}
-          ringOffButtonPressed={ringOffButtonPressed}
-          setRingButtonPressed={setRingButtonPressed}
-          onRingOff={handleRingOff}
-          onSaveSignals={handleSaveSignals}
-          onSetRingMouseDown={handleSetRingMouseDown}
-          onSetRingMouseUp={handleSetRingMouseUp}
-          onSetRingMouseLeave={handleSetRingMouseLeave}
-        />
+    <>
+      <div className="h-screen bg-background flex flex-col select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <SignalInput
+            signalsText={signalsText}
+            onSignalsTextChange={setSignalsText}
+          />
+          
+          <ControlPanel
+            signalsText={signalsText}
+            saveButtonPressed={saveButtonPressed}
+            ringOffButtonPressed={ringOffButtonPressed}
+            setRingButtonPressed={setRingButtonPressed}
+            onRingOff={handleRingOff}
+            onSaveSignals={handleSaveSignals}
+            onSetRingMouseDown={handleSetRingMouseDown}
+            onSetRingMouseUp={handleSetRingMouseUp}
+            onSetRingMouseLeave={handleSetRingMouseLeave}
+          />
+        </div>
       </div>
 
       <AntidelayDialog
@@ -53,7 +55,7 @@ const Index = () => {
         onSubmit={handleAntidelaySubmit}
         onCancel={handleAntidelayCancel}
       />
-    </div>
+    </>
   );
 };
 
