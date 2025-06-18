@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Signal } from '@/types/signal';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
@@ -20,7 +20,7 @@ export const useRingManager = (
   // Subscribe to signal triggered events from background task
   useEffect(() => {
     const unsubscribe = signalStateManager.onSignalTriggered((signal) => {
-      console.log('🔔 RingManager: Received signal triggered from state manager:', signal.timestamp);
+      console.log('🔔 RingManager: Signal triggered from state manager');
       // If app is visible, show ring UI
       if (!document.hidden) {
         setIsRinging(true);
@@ -31,13 +31,9 @@ export const useRingManager = (
     return unsubscribe;
   }, []);
 
-  // Ring notification - called from background task
-  const triggerRing = async (signal: Signal) => {
-    console.log('🔔 RingManager: Triggering ring for signal:', {
-      signal,
-      customRingtoneUrl: customRingtone,
-      hasCustomRingtone: !!customRingtone
-    });
+  // Memoized triggerRing function to prevent infinite re-renders (Step 1 fix)
+  const triggerRing = useCallback(async (signal: Signal) => {
+    console.log('🔔 RingManager: Triggering ring for signal:', signal.timestamp);
     
     setIsRinging(true);
     setCurrentRingingSignal(signal);
@@ -52,29 +48,25 @@ export const useRingManager = (
     }
 
     // Play custom ringtone or default beep and track audio instances
-    console.log('🔔 RingManager: About to play audio with ringtone:', customRingtone);
     const audio = await playCustomRingtone(customRingtone, audioContextsRef);
     if (audio instanceof HTMLAudioElement) {
       audioInstancesRef.current.push(audio);
-      console.log('🔔 RingManager: Audio instance added to tracking array');
     }
 
     // Mark signal as triggered through unified state manager
     signalStateManager.markSignalTriggered(signal);
-  };
+  }, [customRingtone]);
 
   // Ring off button handler - stops ALL audio immediately
-  const handleRingOff = () => {
-    console.log('🔔 RingManager: Ring off button pressed - stopping all audio');
+  const handleRingOff = useCallback(() => {
+    console.log('🔔 RingManager: Ring off button pressed');
     
     setRingOffButtonPressed(true);
     setTimeout(() => setRingOffButtonPressed(false), 200);
     
-    // Stop ALL audio instances immediately
-    console.log('🔔 RingManager: Stopping', audioInstancesRef.current.length, 'audio instances');
-    audioInstancesRef.current.forEach((audio, index) => {
+    // Stop ALL audio instances immediately (Step 4: cleanup)
+    audioInstancesRef.current.forEach((audio) => {
       if (audio) {
-        console.log('🔔 RingManager: Stopping audio instance', index);
         audio.pause();
         audio.currentTime = 0;
       }
@@ -82,39 +74,34 @@ export const useRingManager = (
     audioInstancesRef.current = [];
     
     // Stop ALL Web Audio API contexts
-    console.log('🔔 RingManager: Stopping', audioContextsRef.current.length, 'audio contexts');
-    audioContextsRef.current.forEach((context, index) => {
+    audioContextsRef.current.forEach((context) => {
       if (context && context.state !== 'closed') {
-        console.log('🔔 RingManager: Closing audio context', index);
-        context.close().catch(err => console.log('🔔 RingManager: Audio context cleanup error:', err));
+        context.close().catch(err => console.error('Audio context cleanup error:', err));
       }
     });
     audioContextsRef.current = [];
     
     // Additional cleanup: Stop any remaining audio elements on the page
     const allAudioElements = document.querySelectorAll('audio');
-    console.log('🔔 RingManager: Found', allAudioElements.length, 'audio elements on page to stop');
-    allAudioElements.forEach((audio, index) => {
-      console.log('🔔 RingManager: Stopping page audio element', index);
+    allAudioElements.forEach((audio) => {
       audio.pause();
       audio.currentTime = 0;
     });
     
     // Stop ringing if currently ringing
     if (isRinging) {
-      console.log('🔔 RingManager: Stopping ringing state');
       setIsRinging(false);
       setCurrentRingingSignal(null);
       releaseWakeLock(wakeLock);
       setWakeLock(null);
     }
-  };
+  }, [isRinging, wakeLock]);
 
   return {
     isRinging,
     currentRingingSignal,
     ringOffButtonPressed,
     handleRingOff,
-    triggerRing // Export this for background task to call
+    triggerRing
   };
 };

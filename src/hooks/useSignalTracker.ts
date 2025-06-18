@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { 
   startBackgroundTask, 
   stopBackgroundTask, 
@@ -13,6 +13,9 @@ import { useAntidelayManager } from './useAntidelayManager';
 import { useAudioManager } from './useAudioManager';
 
 export const useSignalTracker = () => {
+  const registeredRef = useRef(false);
+  const backgroundTaskStartedRef = useRef(false);
+
   const {
     signalsText,
     setSignalsText,
@@ -28,11 +31,15 @@ export const useSignalTracker = () => {
 
   const { triggerRingtoneSelection, clearCustomRingtone } = useAudioManager(setCustomRingtone);
 
+  // Stabilize triggerRing function reference with useCallback
   const {
     ringOffButtonPressed,
     handleRingOff,
     triggerRing
   } = useRingManager(customRingtone, updateSignalTriggered);
+
+  // Memoize triggerRing to prevent infinite re-renders
+  const stableTriggerRing = useCallback(triggerRing, [triggerRing]);
 
   const {
     showAntidelayDialog,
@@ -46,34 +53,48 @@ export const useSignalTracker = () => {
     handleAntidelayCancel
   } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds, triggerRingtoneSelection, clearCustomRingtone);
 
-  // Register ring manager callback with background task for unified communication
+  // Register ring manager callback with stable reference (Step 1 fix)
   useEffect(() => {
-    if (triggerRing) {
-      console.log('🎯 SignalTracker: Registering ring manager callback with background task');
-      registerRingManagerCallback(triggerRing);
+    if (stableTriggerRing && !registeredRef.current) {
+      console.log('🎯 SignalTracker: Registering ring manager callback (stable)');
+      registerRingManagerCallback(stableTriggerRing);
+      registeredRef.current = true;
       
       return () => {
-        console.log('🎯 SignalTracker: Unregistering ring manager callback');
+        console.log('🎯 SignalTracker: Unregistering ring manager callback (cleanup)');
         unregisterRingManagerCallback();
+        registeredRef.current = false;
       };
     }
-  }, [triggerRing]);
+  }, [stableTriggerRing]);
 
-  // Start unified background task when app loads and signals exist
+  // Start background task only once with proper cleanup (Step 1 & 4 fix)
   useEffect(() => {
-    console.log('🎯 SignalTracker: Starting unified background system for', savedSignals.length, 'signals');
-    
-    // Always start the background task - it will handle both foreground and background scenarios
-    startBackgroundTask();
-    
-    if (savedSignals.length > 0) {
+    if (!backgroundTaskStartedRef.current) {
+      console.log('🎯 SignalTracker: Starting unified background system (one-time)');
+      
+      // Start the background task
+      startBackgroundTask();
+      backgroundTaskStartedRef.current = true;
+      
+      // Schedule notifications for existing signals
+      if (savedSignals.length > 0) {
+        scheduleAllSignalNotifications(savedSignals);
+      }
+
+      return () => {
+        console.log('🎯 SignalTracker: Stopping unified background system (cleanup)');
+        stopBackgroundTask();
+        backgroundTaskStartedRef.current = false;
+      };
+    }
+  }, []); // Empty dependency array to run only once
+
+  // Schedule notifications when signals change (Step 4 optimization)
+  useEffect(() => {
+    if (savedSignals.length > 0 && backgroundTaskStartedRef.current) {
       scheduleAllSignalNotifications(savedSignals);
     }
-
-    return () => {
-      console.log('🎯 SignalTracker: Stopping unified background system');
-      stopBackgroundTask();
-    };
   }, [savedSignals]);
 
   return {
