@@ -27,22 +27,24 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
-      <SignalInput
-        signalsText={signalsText}
-        onSignalsTextChange={setSignalsText}
-      />
-      
-      <ControlPanel
-        signalsText={signalsText}
-        saveButtonPressed={saveButtonPressed}
-        ringOffButtonPressed={ringOffButtonPressed}
-        setRingButtonPressed={setRingButtonPressed}
-        onRingOff={handleRingOff}
-        onSaveSignals={handleSaveSignals}
-        onSetRingMouseDown={handleSetRingMouseDown}
-        onSetRingMouseUp={handleSetRingMouseUp}
-        onSetRingMouseLeave={handleSetRingMouseLeave}
-      />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <SignalInput
+          signalsText={signalsText}
+          onSignalsTextChange={setSignalsText}
+        />
+        
+        <ControlPanel
+          signalsText={signalsText}
+          saveButtonPressed={saveButtonPressed}
+          ringOffButtonPressed={ringOffButtonPressed}
+          setRingButtonPressed={setRingButtonPressed}
+          onRingOff={handleRingOff}
+          onSaveSignals={handleSaveSignals}
+          onSetRingMouseDown={handleSetRingMouseDown}
+          onSetRingMouseUp={handleSetRingMouseUp}
+          onSetRingMouseLeave={handleSetRingMouseLeave}
+        />
+      </div>
 
       <AntidelayDialog
         open={showAntidelayDialog}
