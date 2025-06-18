@@ -59,16 +59,6 @@ export const checkSignalTime = (signal: Signal, antidelaySeconds: number = 0): b
   const timeDifference = Math.abs(currentTime - targetTimeMs);
   const withinTolerance = timeDifference <= toleranceMs;
   
-  // Detailed debug logging for signal time comparison
-  console.log(`🎯 SignalCheck: ${signal.timestamp}`, {
-    currentTime: now.toLocaleTimeString(),
-    targetTime: targetTime.toLocaleTimeString(),
-    timeDifferenceMs: timeDifference,
-    toleranceMs,
-    withinTolerance,
-    isTriggered: signal.triggered,
-    shouldTrigger: withinTolerance && !signal.triggered
-  });
-  
+  // Removed verbose logging - only return the result
   return withinTolerance && !signal.triggered;
 };

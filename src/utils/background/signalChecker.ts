@@ -27,7 +27,28 @@ export const checkSignalsInBackground = async () => {
     }
     
     for (const signal of futureSignals) {
-      if (checkSignalTime(signal, antidelaySeconds)) {
+      // Check signal time but suppress the verbose logging
+      const now = new Date();
+      const currentTime = now.getTime();
+      
+      // Parse signal timestamp
+      const [signalHours, signalMinutes] = signal.timestamp.split(':').map(Number);
+      
+      // Calculate target time with antidelay
+      const signalDate = new Date();
+      signalDate.setHours(signalHours, signalMinutes, 0, 0);
+      
+      // Subtract antidelay seconds
+      const targetTime = new Date(signalDate.getTime() - (antidelaySeconds * 1000));
+      const targetTimeMs = targetTime.getTime();
+      
+      // Use a tolerance window of ±2 seconds (2000ms)
+      const toleranceMs = 2000;
+      const timeDifference = Math.abs(currentTime - targetTimeMs);
+      const withinTolerance = timeDifference <= toleranceMs;
+      
+      // Only log when signal is actually triggered (not every check)
+      if (withinTolerance && !signal.triggered) {
         console.log('🔔 BackgroundTask: Signal time matched! Triggering audio:', signal.timestamp);
         
         // Play audio only (no notifications)
