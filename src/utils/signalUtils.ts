@@ -41,9 +41,7 @@ export const hasSignalTimePassed = (signal: Signal, antidelaySeconds: number = 0
 
 export const checkSignalTime = (signal: Signal, antidelaySeconds: number = 0): boolean => {
   const now = new Date();
-  const currentHours = now.getHours();
-  const currentMinutes = now.getMinutes();
-  const currentSeconds = now.getSeconds();
+  const currentTime = now.getTime();
   
   // Parse signal timestamp
   const [signalHours, signalMinutes] = signal.timestamp.split(':').map(Number);
@@ -54,14 +52,23 @@ export const checkSignalTime = (signal: Signal, antidelaySeconds: number = 0): b
   
   // Subtract antidelay seconds
   const targetTime = new Date(signalDate.getTime() - (antidelaySeconds * 1000));
-  const targetHours = targetTime.getHours();
-  const targetMinutes = targetTime.getMinutes();
-  const targetSeconds = targetTime.getSeconds();
+  const targetTimeMs = targetTime.getTime();
   
-  // Check if current time exactly matches target time (precise to the second)
-  const timeMatches = currentHours === targetHours && 
-                     currentMinutes === targetMinutes && 
-                     currentSeconds === targetSeconds;
+  // Use a tolerance window of ±2 seconds (2000ms)
+  const toleranceMs = 2000;
+  const timeDifference = Math.abs(currentTime - targetTimeMs);
+  const withinTolerance = timeDifference <= toleranceMs;
   
-  return timeMatches && !signal.triggered;
+  // Detailed debug logging for signal time comparison
+  console.log(`🎯 SignalCheck: ${signal.timestamp}`, {
+    currentTime: now.toLocaleTimeString(),
+    targetTime: targetTime.toLocaleTimeString(),
+    timeDifferenceMs: timeDifference,
+    toleranceMs,
+    withinTolerance,
+    isTriggered: signal.triggered,
+    shouldTrigger: withinTolerance && !signal.triggered
+  });
+  
+  return withinTolerance && !signal.triggered;
 };

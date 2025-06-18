@@ -1,4 +1,3 @@
-
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Signal } from '@/types/signal';
 import { loadSignalsFromStorage, loadAntidelayFromStorage, saveSignalsToStorage } from './signalStorage';
@@ -10,6 +9,7 @@ let backgroundCheckInterval: NodeJS.Timeout | undefined;
 let ringManagerCallback: ((signal: Signal) => void) | null = null;
 let backgroundTaskRunning = false;
 let lastSignalCheckTime = 0;
+let intervalCounter = 0;
 
 // Register ring manager callback for direct communication
 export const registerRingManagerCallback = (callback: (signal: Signal) => void) => {
@@ -23,7 +23,7 @@ export const unregisterRingManagerCallback = () => {
   console.log('🎯 BackgroundTask: Ring manager callback unregistered');
 };
 
-// Setup event-driven communication with UI (Step 4: reduce logging)
+// Setup event-driven communication with UI
 const setupEventCommunication = () => {
   // Listen for UI signal updates
   window.addEventListener('ui-signals-updated', (event: CustomEvent) => {
@@ -39,7 +39,7 @@ const setupEventCommunication = () => {
 };
 
 export const startBackgroundTask = async () => {
-  // Prevent multiple instances (Step 1 & 4 fix)
+  // Prevent multiple instances
   if (backgroundTaskRunning) {
     console.log('🎯 BackgroundTask: Already running, skipping start');
     return;
@@ -65,31 +65,35 @@ export const startBackgroundTask = async () => {
     }
     
     backgroundTaskRunning = true;
+    intervalCounter = 0;
     
-    // Start checking signals every second - ALWAYS ACTIVE (Step 3: signal detection)
+    // Start checking signals every 1000ms (1 second) - CRITICAL FIX
     backgroundCheckInterval = setInterval(async () => {
       const currentTime = Date.now();
       lastSignalCheckTime = currentTime;
+      intervalCounter++;
       
-      // Debug logging to verify execution (Step 3)
-      if (currentTime % 10000 < 1000) { // Log every 10 seconds to reduce spam
-        console.log('🎯 BackgroundTask: Active - checking signals at', new Date().toLocaleTimeString());
+      // Heartbeat logging every 10 seconds to verify 1-second execution
+      if (intervalCounter % 10 === 0) {
+        console.log(`🎯 BackgroundTask: Active - checking signals at ${new Date().toLocaleTimeString()} (heartbeat #${intervalCounter})`);
       }
       
       await checkSignalsInBackground();
-    }, 1000);
+    }, 1000); // FIXED: Now truly runs every 1 second
 
-    // Failsafe mechanism - check if interval is still running every 30 seconds (Step 3)
+    // Failsafe mechanism - check if interval is still running every 30 seconds
     setInterval(() => {
       const timeSinceLastCheck = Date.now() - lastSignalCheckTime;
-      if (timeSinceLastCheck > 5000) { // If no check in 5 seconds, restart
+      if (timeSinceLastCheck > 3000) { // If no check in 3 seconds, restart
         console.warn('🎯 BackgroundTask: Failsafe triggered - restarting signal checking');
         if (backgroundCheckInterval) {
           clearInterval(backgroundCheckInterval);
         }
         // Restart the interval
+        intervalCounter = 0;
         backgroundCheckInterval = setInterval(async () => {
           lastSignalCheckTime = Date.now();
+          intervalCounter++;
           await checkSignalsInBackground();
         }, 1000);
       }
@@ -157,18 +161,14 @@ const checkSignalsInBackground = async () => {
       return !isPast && !isTriggered;
     });
     
-    // Debug logging for signal checking (Step 3)
-    if (futureSignals.length > 0) {
-      const currentTime = new Date().toLocaleTimeString();
-      // Reduce logging frequency (Step 4)
-      if (Date.now() % 30000 < 1000) { // Log every 30 seconds
-        console.log('🎯 BackgroundTask: Checking', futureSignals.length, 'future signals at', currentTime);
-      }
+    // Enhanced debug logging every 30 seconds
+    if (intervalCounter % 30 === 0 && futureSignals.length > 0) {
+      console.log(`🎯 BackgroundTask: Checking ${futureSignals.length} future signals at ${new Date().toLocaleTimeString()}`);
     }
     
     for (const signal of futureSignals) {
       if (checkSignalTime(signal, antidelaySeconds)) {
-        console.log('🎯 BackgroundTask: Signal time matched!', signal.timestamp);
+        console.log('🔔 BackgroundTask: Signal time matched! Triggering:', signal.timestamp);
         
         // Play audio first
         await playBackgroundAudio(signal);
@@ -193,7 +193,7 @@ const checkSignalsInBackground = async () => {
           detail: updatedSignals 
         }));
         
-        console.log('🎯 BackgroundTask: Signal processed and UI notified');
+        console.log('🔔 BackgroundTask: Signal processed and UI notified');
       }
     }
   } catch (error) {
