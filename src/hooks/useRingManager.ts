@@ -1,8 +1,9 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Signal } from '@/types/signal';
 import { playCustomRingtone } from '@/utils/audioUtils';
 import { requestWakeLock, releaseWakeLock } from '@/utils/wakeLockUtils';
+import { signalStateManager } from '@/utils/signalStateManager';
 
 export const useRingManager = (
   customRingtone: string | null,
@@ -15,6 +16,20 @@ export const useRingManager = (
   
   const audioInstancesRef = useRef<HTMLAudioElement[]>([]);
   const audioContextsRef = useRef<AudioContext[]>([]);
+
+  // Subscribe to signal triggered events from background task
+  useEffect(() => {
+    const unsubscribe = signalStateManager.onSignalTriggered((signal) => {
+      console.log('🔔 RingManager: Received signal triggered from state manager:', signal.timestamp);
+      // If app is visible, show ring UI
+      if (!document.hidden) {
+        setIsRinging(true);
+        setCurrentRingingSignal(signal);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   // Ring notification - called from background task
   const triggerRing = async (signal: Signal) => {
@@ -44,8 +59,8 @@ export const useRingManager = (
       console.log('🔔 RingManager: Audio instance added to tracking array');
     }
 
-    // Mark signal as triggered
-    onSignalTriggered(signal);
+    // Mark signal as triggered through unified state manager
+    signalStateManager.markSignalTriggered(signal);
   };
 
   // Ring off button handler - stops ALL audio immediately

@@ -1,3 +1,4 @@
+
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Signal } from '@/types/signal';
 import { loadSignalsFromStorage, loadAntidelayFromStorage, saveSignalsToStorage } from './signalStorage';
@@ -20,8 +21,28 @@ export const unregisterRingManagerCallback = () => {
   console.log('🎯 BackgroundTask: Ring manager callback unregistered');
 };
 
+// Setup event-driven communication with UI
+const setupEventCommunication = () => {
+  // Listen for UI signal updates
+  window.addEventListener('ui-signals-updated', (event: CustomEvent) => {
+    const updatedSignals = event.detail;
+    console.log('🎯 BackgroundTask: Received UI signals update:', updatedSignals.length);
+    // Background task will pick up these changes on next check
+  });
+
+  // Listen for UI signal triggered events
+  window.addEventListener('ui-signal-triggered', (event: CustomEvent) => {
+    const triggeredSignal = event.detail;
+    console.log('🎯 BackgroundTask: Received UI signal triggered event:', triggeredSignal.timestamp);
+    // Update our local state to avoid duplicate triggers
+  });
+};
+
 export const startBackgroundTask = async () => {
   try {
+    // Setup event communication first
+    setupEventCommunication();
+
     // Request notification permissions first
     const permission = await LocalNotifications.requestPermissions();
     console.log('🎯 BackgroundTask: Notification permission:', permission);
@@ -42,7 +63,7 @@ export const startBackgroundTask = async () => {
       await checkSignalsInBackground();
     }, 1000);
 
-    console.log('🎯 BackgroundTask: Unified background monitoring started');
+    console.log('🎯 BackgroundTask: Unified background monitoring started with event communication');
 
   } catch (error) {
     console.error('🎯 BackgroundTask: Failed to start unified background task:', error);
@@ -121,7 +142,17 @@ const checkSignalsInBackground = async () => {
         );
         saveSignalsToStorage(updatedSignals);
         
-        console.log('🎯 BackgroundTask: Signal marked as triggered and saved');
+        // Dispatch event to notify UI about triggered signal
+        window.dispatchEvent(new CustomEvent('signal-triggered', { 
+          detail: signal 
+        }));
+        
+        // Dispatch event to notify UI about updated signals
+        window.dispatchEvent(new CustomEvent('signals-updated', { 
+          detail: updatedSignals 
+        }));
+        
+        console.log('🎯 BackgroundTask: Signal marked as triggered, saved, and UI notified');
       }
     }
   } catch (error) {

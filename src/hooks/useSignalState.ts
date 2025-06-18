@@ -3,12 +3,11 @@ import { useState, useEffect } from 'react';
 import { Signal } from '@/types/signal';
 import { parseSignals, hasSignalTimePassed } from '@/utils/signalUtils';
 import { 
-  saveSignalsToStorage, 
-  loadSignalsFromStorage, 
   saveAntidelayToStorage, 
   loadAntidelayFromStorage 
 } from '@/utils/signalStorage';
 import { scheduleAllSignalNotifications } from '@/utils/backgroundTaskManager';
+import { signalStateManager } from '@/utils/signalStateManager';
 
 export const useSignalState = () => {
   const [signalsText, setSignalsText] = useState('');
@@ -19,12 +18,12 @@ export const useSignalState = () => {
 
   // Load saved data on component mount
   useEffect(() => {
-    const loadedSignals = loadSignalsFromStorage();
+    const loadedSignals = signalStateManager.getSignals();
     const loadedAntidelay = loadAntidelayFromStorage();
     
     if (loadedSignals.length > 0) {
       setSavedSignals(loadedSignals);
-      console.log('📊 Loaded signals from storage:', loadedSignals);
+      console.log('📊 Loaded signals from state manager:', loadedSignals);
     }
     
     setAntidelaySeconds(loadedAntidelay);
@@ -32,6 +31,16 @@ export const useSignalState = () => {
     
     // Note: Custom ringtone is now loaded in useAudioManager via IndexedDB
     console.log('📊 Custom ringtone will be loaded from IndexedDB via useAudioManager');
+  }, []);
+
+  // Subscribe to signal state updates
+  useEffect(() => {
+    const unsubscribe = signalStateManager.onSignalsUpdate((updatedSignals) => {
+      setSavedSignals(updatedSignals);
+      console.log('📊 Signals updated from state manager:', updatedSignals.length);
+    });
+
+    return unsubscribe;
   }, []);
 
   // Save antidelay changes to storage
@@ -68,8 +77,8 @@ export const useSignalState = () => {
       futureSignals: futureSignals.map(s => ({ timestamp: s.timestamp, triggered: s.triggered }))
     });
     
-    setSavedSignals(processedSignals);
-    saveSignalsToStorage(processedSignals);
+    // Update through unified state manager
+    signalStateManager.updateSignals(processedSignals);
     
     // Only schedule notifications for future signals
     if (futureSignals.length > 0) {
@@ -80,46 +89,15 @@ export const useSignalState = () => {
     }
   };
 
-  // Fixed updateSignalTriggered using timestamp-based comparison
+  // Signal triggered handler using unified state manager
   const updateSignalTriggered = (targetSignal: Signal) => {
-    console.log('📊 Updating signal triggered state:', {
+    console.log('📊 Marking signal as triggered via state manager:', {
       targetTimestamp: targetSignal.timestamp,
       targetAsset: targetSignal.asset,
-      targetDirection: targetSignal.direction,
-      currentSignalsCount: savedSignals.length
+      targetDirection: targetSignal.direction
     });
     
-    const updatedSignals = savedSignals.map(s => {
-      // Use timestamp comparison instead of object reference
-      if (s.timestamp === targetSignal.timestamp) {
-        console.log('📊 Found matching signal by timestamp:', {
-          timestamp: s.timestamp,
-          wasTriggered: s.triggered,
-          nowTriggered: true
-        });
-        return { ...s, triggered: true };
-      }
-      return s;
-    });
-    
-    // Verify the update was successful
-    const updatedSignal = updatedSignals.find(s => s.timestamp === targetSignal.timestamp);
-    if (updatedSignal && updatedSignal.triggered) {
-      console.log('📊 Signal successfully marked as triggered:', {
-        timestamp: updatedSignal.timestamp,
-        triggered: updatedSignal.triggered
-      });
-    } else {
-      console.warn('📊 Warning: Signal update may have failed:', {
-        targetTimestamp: targetSignal.timestamp,
-        foundSignal: !!updatedSignal,
-        isTriggered: updatedSignal?.triggered
-      });
-    }
-    
-    setSavedSignals(updatedSignals);
-    saveSignalsToStorage(updatedSignals);
-    console.log('📊 Signal marked as triggered and saved to storage');
+    signalStateManager.markSignalTriggered(targetSignal);
   };
 
   // Custom handler for updating ringtone that preserves signal states
