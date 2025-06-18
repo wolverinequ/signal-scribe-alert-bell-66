@@ -1,3 +1,6 @@
+
+import { Signal } from '@/types/signal';
+
 // Main export file for background task management
 export { startBackgroundTask, stopBackgroundTask } from './background/taskManager';
 export { registerRingManagerCallback, unregisterRingManagerCallback } from './background/callbackManager';
