@@ -4,9 +4,9 @@
   "short_name": "SignalTracker",
   "description": "Track and get notifications for binary options signals",
   "start_url": "/",
-  "display": "minimal-ui",
+  "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "theme_color": "#000000",
   "orientation": "portrait",
   "icons": [
     {
