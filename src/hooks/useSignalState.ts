@@ -6,7 +6,6 @@ import {
   saveAntidelayToStorage, 
   loadAntidelayFromStorage 
 } from '@/utils/signalStorage';
-import { scheduleAllSignalNotifications } from '@/utils/backgroundTaskManager';
 import { signalStateManager } from '@/utils/signalStateManager';
 
 export const useSignalState = () => {
@@ -48,7 +47,7 @@ export const useSignalState = () => {
     saveAntidelayToStorage(antidelaySeconds);
   }, [antidelaySeconds]);
 
-  // Save signals handler - with intelligent past/future signal handling
+  // Save signals handler - with intelligent past/future signal handling (audio-only mode)
   const handleSaveSignals = () => {
     setSaveButtonPressed(true);
     setTimeout(() => setSaveButtonPressed(false), 200);
@@ -68,7 +67,7 @@ export const useSignalState = () => {
     const pastSignals = processedSignals.filter(s => s.triggered);
     const futureSignals = processedSignals.filter(s => !s.triggered);
     
-    console.log('📊 Saving new signals with intelligent state handling:', {
+    console.log('📊 Saving new signals with intelligent state handling (audio-only):', {
       totalSignalsCount: processedSignals.length,
       pastSignalsCount: pastSignals.length,
       futureSignalsCount: futureSignals.length,
@@ -80,13 +79,8 @@ export const useSignalState = () => {
     // Update through unified state manager
     signalStateManager.updateSignals(processedSignals);
     
-    // Only schedule notifications for future signals
-    if (futureSignals.length > 0) {
-      console.log('📊 Scheduling notifications for', futureSignals.length, 'future signals');
-      scheduleAllSignalNotifications(futureSignals);
-    } else {
-      console.log('📊 No future signals to schedule notifications for');
-    }
+    // No notification scheduling in audio-only mode
+    console.log('📊 Audio-only mode: No notifications scheduled, using audio alerts only');
   };
 
   // Signal triggered handler using unified state manager
@@ -121,3 +115,4 @@ export const useSignalState = () => {
     updateSignalTriggered
   };
 };
+

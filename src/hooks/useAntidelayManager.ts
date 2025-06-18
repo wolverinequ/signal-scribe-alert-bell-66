@@ -1,6 +1,5 @@
 
 import { useState, useRef } from 'react';
-import { scheduleAllSignalNotifications } from '@/utils/backgroundTaskManager';
 import { Signal } from '@/types/signal';
 
 export const useAntidelayManager = (
@@ -64,7 +63,7 @@ export const useAntidelayManager = (
     }
   };
 
-  // Antidelay dialog handlers
+  // Antidelay dialog handlers (no notification rescheduling in audio-only mode)
   const handleAntidelaySubmit = () => {
     console.log('🎛️ AntidelayManager: Antidelay dialog submit with value:', antidelayInput);
     const seconds = parseInt(antidelayInput);
@@ -73,11 +72,8 @@ export const useAntidelayManager = (
       setShowAntidelayDialog(false);
       setAntidelayInput('');
       
-      // Reschedule notifications with new antidelay
-      if (savedSignals.length > 0) {
-        console.log('🎛️ AntidelayManager: Rescheduling notifications with new antidelay:', seconds);
-        scheduleAllSignalNotifications(savedSignals);
-      }
+      // No notification rescheduling in audio-only mode
+      console.log('🎛️ AntidelayManager: Antidelay updated (audio-only mode, no notification rescheduling)');
     } else {
       console.log('🎛️ AntidelayManager: Invalid antidelay value:', antidelayInput);
     }
@@ -101,3 +97,4 @@ export const useAntidelayManager = (
     handleAntidelayCancel
   };
 };
+

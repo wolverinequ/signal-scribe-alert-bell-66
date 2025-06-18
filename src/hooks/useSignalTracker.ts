@@ -2,8 +2,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { 
   startBackgroundTask, 
-  stopBackgroundTask, 
-  scheduleAllSignalNotifications,
+  stopBackgroundTask,
   registerRingManagerCallback,
   unregisterRingManagerCallback
 } from '@/utils/backgroundTaskManager';
@@ -53,7 +52,7 @@ export const useSignalTracker = () => {
     handleAntidelayCancel
   } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds, triggerRingtoneSelection, clearCustomRingtone);
 
-  // Register ring manager callback with stable reference (Step 1 fix)
+  // Register ring manager callback with stable reference
   useEffect(() => {
     if (stableTriggerRing && !registeredRef.current) {
       console.log('🎯 SignalTracker: Registering ring manager callback (stable)');
@@ -68,19 +67,14 @@ export const useSignalTracker = () => {
     }
   }, [stableTriggerRing]);
 
-  // Start background task only once with proper cleanup (Step 1 & 4 fix)
+  // Start background task only once with proper cleanup (audio-only mode)
   useEffect(() => {
     if (!backgroundTaskStartedRef.current) {
-      console.log('🎯 SignalTracker: Starting unified background system (one-time)');
+      console.log('🎯 SignalTracker: Starting unified background system (audio-only mode)');
       
       // Start the background task
       startBackgroundTask();
       backgroundTaskStartedRef.current = true;
-      
-      // Schedule notifications for existing signals
-      if (savedSignals.length > 0) {
-        scheduleAllSignalNotifications(savedSignals);
-      }
 
       return () => {
         console.log('🎯 SignalTracker: Stopping unified background system (cleanup)');
@@ -90,12 +84,7 @@ export const useSignalTracker = () => {
     }
   }, []); // Empty dependency array to run only once
 
-  // Schedule notifications when signals change (Step 4 optimization)
-  useEffect(() => {
-    if (savedSignals.length > 0 && backgroundTaskStartedRef.current) {
-      scheduleAllSignalNotifications(savedSignals);
-    }
-  }, [savedSignals]);
+  // No notification scheduling needed in audio-only mode
 
   return {
     signalsText,
@@ -116,3 +105,4 @@ export const useSignalTracker = () => {
     handleAntidelayCancel
   };
 };
+

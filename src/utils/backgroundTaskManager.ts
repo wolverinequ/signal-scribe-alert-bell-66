@@ -1,4 +1,3 @@
-import { LocalNotifications } from '@capacitor/local-notifications';
 import { Signal } from '@/types/signal';
 import { loadSignalsFromStorage, loadAntidelayFromStorage, saveSignalsToStorage } from './signalStorage';
 import { checkSignalTime, hasSignalTimePassed } from './signalUtils';
@@ -49,15 +48,7 @@ export const startBackgroundTask = async () => {
     // Setup event communication first
     setupEventCommunication();
 
-    // Request notification permissions first
-    const permission = await LocalNotifications.requestPermissions();
-    console.log('🎯 BackgroundTask: Notification permission:', permission.display);
-
-    if (permission.display !== 'granted') {
-      console.warn('🎯 BackgroundTask: Notification permissions not granted');
-    }
-
-    console.log('🎯 BackgroundTask: Starting unified background monitoring');
+    console.log('🎯 BackgroundTask: Starting unified background monitoring (audio only)');
     
     // Stop any existing interval first (cleanup)
     if (backgroundCheckInterval) {
@@ -67,19 +58,19 @@ export const startBackgroundTask = async () => {
     backgroundTaskRunning = true;
     intervalCounter = 0;
     
-    // Start checking signals every 1000ms (1 second) - CRITICAL FIX
+    // Start checking signals every 1000ms (1 second)
     backgroundCheckInterval = setInterval(async () => {
       const currentTime = Date.now();
       lastSignalCheckTime = currentTime;
       intervalCounter++;
       
-      // Heartbeat logging every 10 seconds to verify 1-second execution
-      if (intervalCounter % 10 === 0) {
+      // Heartbeat logging every 30 seconds to reduce console spam
+      if (intervalCounter % 30 === 0) {
         console.log(`🎯 BackgroundTask: Active - checking signals at ${new Date().toLocaleTimeString()} (heartbeat #${intervalCounter})`);
       }
       
       await checkSignalsInBackground();
-    }, 1000); // FIXED: Now truly runs every 1 second
+    }, 1000);
 
     // Failsafe mechanism - check if interval is still running every 30 seconds
     setInterval(() => {
@@ -99,7 +90,7 @@ export const startBackgroundTask = async () => {
       }
     }, 30000);
 
-    console.log('🎯 BackgroundTask: Unified background monitoring started');
+    console.log('🎯 BackgroundTask: Unified background monitoring started (audio only)');
 
   } catch (error) {
     console.error('🎯 BackgroundTask: Failed to start:', error);
@@ -161,20 +152,17 @@ const checkSignalsInBackground = async () => {
       return !isPast && !isTriggered;
     });
     
-    // Enhanced debug logging every 30 seconds
+    // Enhanced debug logging every 30 seconds to reduce spam
     if (intervalCounter % 30 === 0 && futureSignals.length > 0) {
       console.log(`🎯 BackgroundTask: Checking ${futureSignals.length} future signals at ${new Date().toLocaleTimeString()}`);
     }
     
     for (const signal of futureSignals) {
       if (checkSignalTime(signal, antidelaySeconds)) {
-        console.log('🔔 BackgroundTask: Signal time matched! Triggering:', signal.timestamp);
+        console.log('🔔 BackgroundTask: Signal time matched! Triggering audio:', signal.timestamp);
         
-        // Play audio first
+        // Play audio only (no notifications)
         await playBackgroundAudio(signal);
-        
-        // Then trigger notification
-        await triggerLocalNotification(signal);
         
         // Mark signal as triggered and save back to storage immediately
         signal.triggered = true;
@@ -193,7 +181,7 @@ const checkSignalsInBackground = async () => {
           detail: updatedSignals 
         }));
         
-        console.log('🔔 BackgroundTask: Signal processed and UI notified');
+        console.log('🔔 BackgroundTask: Signal processed and UI notified (audio only)');
       }
     }
   } catch (error) {
@@ -201,83 +189,8 @@ const checkSignalsInBackground = async () => {
   }
 };
 
-const triggerLocalNotification = async (signal: Signal) => {
-  try {
-    await LocalNotifications.schedule({
-      notifications: [
-        {
-          title: 'Binary Options Signal Alert!',
-          body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
-          id: Date.now(),
-          schedule: { at: new Date() },
-          sound: 'default',
-          attachments: undefined,
-          actionTypeId: '',
-          extra: {
-            signal: JSON.stringify(signal)
-          }
-        }
-      ]
-    });
-    
-    console.log('🎯 BackgroundTask: Local notification scheduled');
-  } catch (error) {
-    console.error('🎯 BackgroundTask: Failed to schedule notification:', error);
-  }
-};
-
-// Fixed notification scheduling format (Step 2 from plan)
+// Remove all notification-related functions - keeping only the stub for compatibility
 export const scheduleAllSignalNotifications = async (signals: Signal[]) => {
-  try {
-    const antidelaySeconds = loadAntidelayFromStorage();
-    const now = new Date();
-    
-    // Cancel existing notifications first
-    await LocalNotifications.cancel({ notifications: [] });
-    
-    // Only schedule for future signals that haven't been triggered
-    const futureSignals = signals.filter(signal => {
-      const isPast = hasSignalTimePassed(signal, antidelaySeconds);
-      return !isPast && !signal.triggered;
-    });
-    
-    const notifications = futureSignals
-      .map((signal, index) => {
-        const [hours, minutes] = signal.timestamp.split(':').map(Number);
-        const signalTime = new Date();
-        signalTime.setHours(hours, minutes, 0, 0);
-        
-        // Subtract antidelay seconds
-        const notificationTime = new Date(signalTime.getTime() - (antidelaySeconds * 1000));
-        
-        // Only schedule if notification time is in the future
-        if (notificationTime > now) {
-          return {
-            title: 'Binary Options Signal Alert!',
-            body: `${signal.asset} - ${signal.direction} at ${signal.timestamp}`,
-            id: index + 1,
-            schedule: { at: notificationTime },
-            sound: 'default',
-            attachments: undefined,
-            actionTypeId: '',
-            extra: {
-              signal: JSON.stringify(signal)
-            }
-          };
-        }
-        return null;
-      })
-      .filter(notification => notification !== null);
-
-    if (notifications.length > 0) {
-      await LocalNotifications.schedule({
-        notifications: notifications as any[]
-      });
-      console.log(`🎯 BackgroundTask: Scheduled ${notifications.length} notifications`);
-    } else {
-      console.log('🎯 BackgroundTask: No future signals to schedule');
-    }
-  } catch (error) {
-    console.error('🎯 BackgroundTask: Failed to schedule notifications:', error);
-  }
+  // Notification scheduling disabled - audio-only mode
+  console.log('🎯 BackgroundTask: Notification scheduling disabled (audio-only mode)');
 };
