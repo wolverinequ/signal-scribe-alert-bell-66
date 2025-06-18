@@ -3,7 +3,9 @@ import { useEffect } from 'react';
 import { 
   startBackgroundTask, 
   stopBackgroundTask, 
-  scheduleAllSignalNotifications 
+  scheduleAllSignalNotifications,
+  registerRingManagerCallback,
+  unregisterRingManagerCallback
 } from '@/utils/backgroundTaskManager';
 import { useSignalState } from './useSignalState';
 import { useRingManager } from './useRingManager';
@@ -24,14 +26,13 @@ export const useSignalTracker = () => {
     updateSignalTriggered
   } = useSignalState();
 
-  console.log('🎯 SignalTracker: Current custom ringtone state:', customRingtone);
-
   const { triggerRingtoneSelection, clearCustomRingtone } = useAudioManager(setCustomRingtone);
 
   const {
     ringOffButtonPressed,
-    handleRingOff
-  } = useRingManager(savedSignals, antidelaySeconds, customRingtone, updateSignalTriggered);
+    handleRingOff,
+    triggerRing
+  } = useRingManager(customRingtone, updateSignalTriggered);
 
   const {
     showAntidelayDialog,
@@ -45,31 +46,35 @@ export const useSignalTracker = () => {
     handleAntidelayCancel
   } = useAntidelayManager(savedSignals, antidelaySeconds, setAntidelaySeconds, triggerRingtoneSelection, clearCustomRingtone);
 
-  // Start background task when app loads and signals exist
+  // Register ring manager callback with background task for unified communication
   useEffect(() => {
-    if (savedSignals.length > 0) {
-      console.log('🎯 SignalTracker: Starting background task for', savedSignals.length, 'signals');
-      startBackgroundTask();
-      scheduleAllSignalNotifications(savedSignals);
+    if (triggerRing) {
+      console.log('🎯 SignalTracker: Registering ring manager callback with background task');
+      registerRingManagerCallback(triggerRing);
       
-      // Register service worker for background sync
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'REGISTER_BACKGROUND_SYNC'
-        });
-      }
+      return () => {
+        console.log('🎯 SignalTracker: Unregistering ring manager callback');
+        unregisterRingManagerCallback();
+      };
+    }
+  }, [triggerRing]);
+
+  // Start unified background task when app loads and signals exist
+  useEffect(() => {
+    console.log('🎯 SignalTracker: Starting unified background system for', savedSignals.length, 'signals');
+    
+    // Always start the background task - it will handle both foreground and background scenarios
+    startBackgroundTask();
+    
+    if (savedSignals.length > 0) {
+      scheduleAllSignalNotifications(savedSignals);
     }
 
     return () => {
-      console.log('🎯 SignalTracker: Stopping background task');
+      console.log('🎯 SignalTracker: Stopping unified background system');
       stopBackgroundTask();
     };
   }, [savedSignals]);
-
-  // Log custom ringtone changes for debugging
-  useEffect(() => {
-    console.log('🎯 SignalTracker: Custom ringtone changed to:', customRingtone);
-  }, [customRingtone]);
 
   return {
     signalsText,
