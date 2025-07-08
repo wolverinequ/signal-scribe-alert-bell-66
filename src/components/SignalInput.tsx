@@ -1,13 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Undo, Redo } from 'lucide-react';
 
 interface SignalInputProps {
   signalsText: string;
   onSignalsTextChange: (text: string) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
-const SignalInput = ({ signalsText, onSignalsTextChange }: SignalInputProps) => {
+const SignalInput = ({ signalsText, onSignalsTextChange, onUndo, onRedo, canUndo, canRedo }: SignalInputProps) => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -30,8 +36,30 @@ const SignalInput = ({ signalsText, onSignalsTextChange }: SignalInputProps) => 
   return (
     <div className="flex-1 p-4 pb-2">
       <div className="mb-4">
-        <div className="text-left">
-          <span className="text-2xl font-bold font-mono">{formatTime(currentTime)}</span>
+        <div className="flex items-center justify-between">
+          <div className="text-left">
+            <span className="text-2xl font-bold font-mono">{formatTime(currentTime)}</span>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onUndo}
+              disabled={!canUndo}
+              className="h-8 w-8 p-0"
+            >
+              <Undo className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRedo}
+              disabled={!canRedo}
+              className="h-8 w-8 p-0"
+            >
+              <Redo className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 

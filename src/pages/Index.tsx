@@ -22,7 +22,11 @@ const Index = () => {
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
-    handleAntidelayCancel
+    handleAntidelayCancel,
+    handleUndo,
+    handleRedo,
+    canUndo,
+    canRedo
   } = useSignalTracker();
 
   return (
@@ -30,6 +34,10 @@ const Index = () => {
       <SignalInput
         signalsText={signalsText}
         onSignalsTextChange={setSignalsText}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
       
       <ControlPanel

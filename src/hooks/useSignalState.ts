@@ -14,6 +14,8 @@ export const useSignalState = () => {
   const [antidelaySeconds, setAntidelaySeconds] = useState(15);
   const [saveButtonPressed, setSaveButtonPressed] = useState(false);
   const [customRingtone, setCustomRingtone] = useState<string | null>(null);
+  const [textHistory, setTextHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
 
   // Load saved data on component mount
   useEffect(() => {
@@ -51,6 +53,22 @@ export const useSignalState = () => {
   const handleSaveSignals = () => {
     setSaveButtonPressed(true);
     setTimeout(() => setSaveButtonPressed(false), 200);
+    
+    // Add current text to history before saving
+    setTextHistory(prev => {
+      const newHistory = [...prev];
+      if (signalsText.trim() && signalsText !== newHistory[newHistory.length - 1]) {
+        newHistory.push(signalsText);
+        // Keep only last 5 entries
+        if (newHistory.length > 5) {
+          newHistory.shift();
+        }
+      }
+      return newHistory;
+    });
+    
+    // Reset history index to current (latest)
+    setHistoryIndex(-1);
     
     const signals = parseSignals(signalsText);
     
@@ -101,6 +119,39 @@ export const useSignalState = () => {
     // Note: We don't reset or resave signals here to preserve their triggered states
   };
 
+  // Undo functionality
+  const handleUndo = () => {
+    if (textHistory.length > 0) {
+      if (historyIndex === -1) {
+        // First undo - go to the last saved version
+        setHistoryIndex(textHistory.length - 1);
+        setSignalsText(textHistory[textHistory.length - 1]);
+      } else if (historyIndex > 0) {
+        // Go to previous version
+        const newIndex = historyIndex - 1;
+        setHistoryIndex(newIndex);
+        setSignalsText(textHistory[newIndex]);
+      }
+    }
+  };
+
+  // Redo functionality
+  const handleRedo = () => {
+    if (historyIndex !== -1 && historyIndex < textHistory.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setSignalsText(textHistory[newIndex]);
+    } else if (historyIndex === textHistory.length - 1) {
+      // Go back to current (latest) version
+      setHistoryIndex(-1);
+      setSignalsText('');
+    }
+  };
+
+  // Check if undo/redo is available
+  const canUndo = textHistory.length > 0 && (historyIndex > 0 || historyIndex === -1);
+  const canRedo = historyIndex !== -1 && historyIndex < textHistory.length - 1;
+
   return {
     signalsText,
     setSignalsText,
@@ -112,7 +163,11 @@ export const useSignalState = () => {
     customRingtone,
     setCustomRingtone: handleCustomRingtoneChange,
     handleSaveSignals,
-    updateSignalTriggered
+    updateSignalTriggered,
+    handleUndo,
+    handleRedo,
+    canUndo,
+    canRedo
   };
 };
 

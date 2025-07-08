@@ -25,7 +25,11 @@ export const useSignalTracker = () => {
     customRingtone,
     setCustomRingtone,
     handleSaveSignals,
-    updateSignalTriggered
+    updateSignalTriggered,
+    handleUndo,
+    handleRedo,
+    canUndo,
+    canRedo
   } = useSignalState();
 
   const { triggerRingtoneSelection, clearCustomRingtone } = useAudioManager(setCustomRingtone);
@@ -102,7 +106,11 @@ export const useSignalTracker = () => {
     handleSetRingMouseUp,
     handleSetRingMouseLeave,
     handleAntidelaySubmit,
-    handleAntidelayCancel
+    handleAntidelayCancel,
+    handleUndo,
+    handleRedo,
+    canUndo,
+    canRedo
   };
 };
 
