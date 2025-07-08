@@ -29,7 +29,8 @@ export const useSignalTracker = () => {
     handleUndo,
     handleRedo,
     canUndo,
-    canRedo
+    canRedo,
+    handleClear
   } = useSignalState();
 
   const { triggerRingtoneSelection, clearCustomRingtone } = useAudioManager(setCustomRingtone);
@@ -110,7 +111,8 @@ export const useSignalTracker = () => {
     handleUndo,
     handleRedo,
     canUndo,
-    canRedo
+    canRedo,
+    handleClear
   };
 };
 

@@ -152,6 +152,12 @@ export const useSignalState = () => {
   const canUndo = textHistory.length > 0 && (historyIndex > 0 || historyIndex === -1);
   const canRedo = historyIndex !== -1 && historyIndex < textHistory.length - 1;
 
+  // Clear functionality
+  const handleClear = () => {
+    setSignalsText('');
+    setHistoryIndex(-1);
+  };
+
   return {
     signalsText,
     setSignalsText,
@@ -167,7 +173,8 @@ export const useSignalState = () => {
     handleUndo,
     handleRedo,
     canUndo,
-    canRedo
+    canRedo,
+    handleClear
   };
 };
 

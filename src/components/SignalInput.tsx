@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Undo, Redo } from 'lucide-react';
+import { Undo, Redo, X } from 'lucide-react';
 
 interface SignalInputProps {
   signalsText: string;
@@ -11,9 +11,10 @@ interface SignalInputProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  onClear: () => void;
 }
 
-const SignalInput = ({ signalsText, onSignalsTextChange, onUndo, onRedo, canUndo, canRedo }: SignalInputProps) => {
+const SignalInput = ({ signalsText, onSignalsTextChange, onUndo, onRedo, canUndo, canRedo, onClear }: SignalInputProps) => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -36,11 +37,11 @@ const SignalInput = ({ signalsText, onSignalsTextChange, onUndo, onRedo, canUndo
   return (
     <div className="flex-1 p-4 pb-2">
       <div className="mb-4">
-        <div className="flex items-center justify-between">
+        <div className="grid grid-cols-3 items-center">
           <div className="text-left">
             <span className="text-2xl font-bold font-mono">{formatTime(currentTime)}</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 justify-center">
             <Button
               variant="outline"
               size="sm"
@@ -58,6 +59,17 @@ const SignalInput = ({ signalsText, onSignalsTextChange, onUndo, onRedo, canUndo
               className="h-8 w-8 p-0"
             >
               <Redo className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="text-right">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClear}
+              className="h-8 px-3"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Clear it
             </Button>
           </div>
         </div>

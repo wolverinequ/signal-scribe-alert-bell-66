@@ -26,7 +26,8 @@ const Index = () => {
     handleUndo,
     handleRedo,
     canUndo,
-    canRedo
+    canRedo,
+    handleClear
   } = useSignalTracker();
 
   return (
@@ -38,6 +39,7 @@ const Index = () => {
         onRedo={handleRedo}
         canUndo={canUndo}
         canRedo={canRedo}
+        onClear={handleClear}
       />
       
       <ControlPanel
