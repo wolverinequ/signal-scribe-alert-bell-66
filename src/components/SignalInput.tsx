@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 
 interface SignalInputProps {
@@ -8,10 +8,31 @@ interface SignalInputProps {
 }
 
 const SignalInput = ({ signalsText, onSignalsTextChange }: SignalInputProps) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-GB', { 
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
   return (
     <div className="flex-1 p-4 pb-2">
       <div className="mb-4">
-        <h1 className="text-2xl font-bold mb-2 text-center">Binary Options Signal Tracker</h1>
+        <div className="text-left">
+          <span className="text-2xl font-bold font-mono">{formatTime(currentTime)}</span>
+        </div>
       </div>
 
       <Textarea
