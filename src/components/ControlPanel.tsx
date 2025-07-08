@@ -27,7 +27,6 @@ const ControlPanel = ({
   onSetRingMouseLeave
 }: ControlPanelProps) => {
   const handleRingOffClick = () => {
-    onRingOff();
     // Remove focus after click to return to original color
     setTimeout(() => {
       if (document.activeElement instanceof HTMLElement) {
@@ -75,11 +74,6 @@ const ControlPanel = ({
         </Button>
 
         <Button
-          onMouseDown={onSetRingMouseDown}
-          onMouseUp={onSetRingMouseUp}
-          onMouseLeave={onSetRingMouseLeave}
-          onTouchStart={onSetRingMouseDown}
-          onTouchEnd={onSetRingMouseUp}
           variant="outline"
           className={`h-16 flex flex-col gap-1 transition-transform duration-200 select-none hover:bg-background focus:bg-background active:bg-background ${
             setRingButtonPressed ? 'scale-95' : ''
